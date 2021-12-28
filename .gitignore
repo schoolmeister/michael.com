@@ -1,3 +1,9 @@
+# Build output
+dist/
+
+# Cache
+.cache/
+
 # Logs
 logs
 *.log
