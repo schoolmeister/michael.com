@@ -1,13 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <title>A JavaScript project</title>
-  <link rel="stylesheet" href="style.css">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-</head>
-<body>
-  <h1>A JavaScript project</h1>
-  <div id="app"></div>
-  <script src="main.js"></script>
-</body>
+  <head>
+    <title>A JavaScript project</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="content.css" />
+  </head>
+  <body>
+    <div class="content">
+      <div class="window" style="margin: 32px; width: 250px">
+        <div class="title-bar">
+          <div class="title-bar-text">Michaël's On-line Web Space</div>
+
+          <div class="title-bar-controls">
+            <button aria-label="Minimize"></button>
+            <button aria-label="Maximize"></button>
+            <button aria-label="Close"></button>
+          </div>
+        </div>
+        <div class="window-body">
+          <p>Hello, world!</p>
+          <div id="counter"></div>
+          <section class="field-row" style="justify-content: flex-end">
+            <button>OK</button>
+            <button>Cancel</button>
+          </section>
+        </div>
+      </div>
+    </div>
+    <script src="main.js"></script>
+  </body>
 </html>
