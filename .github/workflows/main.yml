@@ -45,4 +45,9 @@ jobs:
           headers: |-
             Cache-Control: public, max-age=3600
 
+      - id: 'invalidation'
+        uses: 'google-github-actions/setup-gcloud@v0'
+        run: 'gcloud compute url-maps invalidate-cdn-cache lb-michael-com --path "/*"'
+
+
       
