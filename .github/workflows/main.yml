@@ -19,7 +19,7 @@ jobs:
           node-version: '14.x'
       - uses: actions/cache@v1
         with:
-          path: themes/my-theme/src/node_modules
+          path: node_modules
           key: ${{ runner.os }}-js-${{ hashFiles('package-lock.json') }}
       - run: make deps
       - run: make lint
