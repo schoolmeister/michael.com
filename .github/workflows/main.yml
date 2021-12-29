@@ -49,7 +49,7 @@ jobs:
         uses: 'google-github-actions/setup-gcloud@v0'
 
       - id: 'invalidation'
-        run: 'gcloud compute url-maps invalidate-cdn-cache lb-michael-com --path "/*"'
+        run: 'gcloud compute url-maps invalidate-cdn-cache lb-michael-com --path "/*"' --async
 
 
       
