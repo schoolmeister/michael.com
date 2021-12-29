@@ -42,7 +42,6 @@ jobs:
           path: 'dist'
           destination: 'michael-com'
           parent: false
-          predefinedAcl: publicRead
           headers: |-
             Cache-Control: public, max-age=3600
 
