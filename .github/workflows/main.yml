@@ -35,13 +35,15 @@ jobs:
         uses: 'google-github-actions/auth@v0'
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
-    
-      - name: 'Set up GCloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v0'
       
-      - run: gsutil -m rsync -d -c -r dist gs://michael-com
-      - run: gsutil -m setmeta -h "Cache-Control:public, max-age=3600" gs://my-gcs-bucket/**/*.html
-      - run: gsutil -m setmeta -h "Cache-Control:public, max-age=31536000" gs://my-gcs-bucket/js/*.js
-      - run: gsutil -m setmeta -h "Cache-Control:public, max-age=31536000" gs://my-gcs-bucket/css/*.css
+      - id: 'upload-files'
+        uses: 'google-github-actions/upload-cloud-storage@v0'
+        with:
+          path: 'dist'
+          destination: 'michael-com'
+          parent: false
+          predefinedAcl: publicRead
+          headers: |-
+            Cache-Control: public, max-age=3600
 
       
