@@ -1,38 +1,40 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
-    <meta content="utf-8" http-equiv="encoding">
 
-    <link rel="stylesheet" href="content.css" />
-    <link rel="icon" href="favicon.ico" type="image/x-icon"/>
-    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon"/>
-    
-    <title>Yo</title>
-  </head>
-  <body>
-    <div class="content">
-      <div class="window" style="margin: 32px; width: 250px">
-        <div class="title-bar">
-          <div class="title-bar-text">Michaël's On-line Web Space</div>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta content="text/html;charset=utf-8" http-equiv="Content-Type" />
+  <meta content="utf-8" http-equiv="encoding" />
 
-          <div class="title-bar-controls">
-            <button aria-label="Minimize"></button>
-            <button aria-label="Maximize"></button>
-            <button aria-label="Close"></button>
-          </div>
-        </div>
-        <div class="window-body">
-          <p>Hello, world!</p>
-          <div id="counter"></div>
-          <section class="field-row" style="justify-content: flex-end">
-            <button>OK</button>
-            <button>Leave</button>
-          </section>
+  <link rel="stylesheet" href="content.css" />
+  <link rel="icon" href="favicon.ico" type="image/x-icon" />
+  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
+
+  <title>Yo</title>
+</head>
+
+<body>
+  <div class="content">
+    <div class="window" style="margin: 32px; width: 250px" id="main-window">
+      <div class="title-bar">
+        <div class="title-bar-text">Michaël's On-line Web Space</div>
+
+        <div class="title-bar-controls">
+          <button aria-label="Minimize" id="minimize-button"></button>
+          <button aria-label="Maximize" id="maximize-button"></button>
+          <button aria-label="Close" id="close-button"></button>
         </div>
       </div>
+      <div class="window-body">
+        <p>Hello, world!</p>
+        <div id="counter"></div>
+        <section class="field-row" style="justify-content: flex-end">
+          <button id="leave-button">Leave</button>
+        </section>
+      </div>
     </div>
-    <script src="main.js"></script>
-  </body>
+  </div>
+  <script src="main.js"></script>
+</body>
+
 </html>
