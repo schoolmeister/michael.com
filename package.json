@@ -18,10 +18,15 @@
   "devDependencies": {
     "eslint": "^8.5.0",
     "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-import": "^2.25.3",
     "parcel-bundler": "^1.12.5"
   },
   "dependencies": {
-    "98.css": "^0.1.17"
+    "98.css": "^0.1.17",
+    "@turf/turf": "^6.5.0",
+    "leaflet": "^1.7.1",
+    "leaflet.locatecontrol": "^0.76.0",
+    "leaflet.markercluster": "^1.5.3"
   }
 }

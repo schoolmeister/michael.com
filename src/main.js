@@ -1,43 +1,40 @@
-/* eslint-disable strict */
+require("./imports.js");
 
-'use strict';
+let ICON = L.icon({
+  iconUrl: require("./images/onion-red-32x32.png"),
+  iconSize: [40, 40],
+});
 
-require('98.css');
+function setupMap() {
+  var map = L.map("map").setView([51.049999, 3.733333], 19);
+  L.tileLayer(
+    "https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token=pk.eyJ1Ijoic2Nob29sbWVpc3RlciIsImEiOiJja3owY2F3d3kxYW85MzBteHN2aXZzOHl1In0.GdKYPEWxWqqsHornbQvUVg",
+    {
+      attribution:
+        'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+      maxZoom: 18,
+      id: "mapbox/streets-v11",
+      tileSize: 512,
+      zoomOffset: -1,
+      accessToken:
+        "pk.eyJ1Ijoic2Nob29sbWVpc3RlciIsImEiOiJja3owY2F3d3kxYW85MzBteHN2aXZzOHl1In0.GdKYPEWxWqqsHornbQvUVg",
+    }
+  ).addTo(map);
+  storesLayer = L.geoJSON(stores, {
+    pointToLayer: function (feature, latlng) {
+      return L.marker(latlng, { icon: ICON });
+    },
+  });
+  L.markerClusterGroup({
+    disableClusteringAtZoom: 13,
+    spiderfyOnMaxZoom: false,
+  })
+    .addLayer(storesLayer)
+    .addTo(map);
 
-function counter() {
-  let seconds = 0;
-  setInterval(() => {
-    seconds += 1;
-    const element = document.getElementById('counter');
-    if (element) element.innerHTML = `<p>You have been here for ${seconds} seconds.</p>`;
-  }, 1000);
+  let lc = L.control.locate().addTo(map);
+  lc.start();
+  return map;
 }
 
-function closeWindow() {
-  document.getElementById('main-window').remove();
-}
-
-function leave() {
-  // eslint-disable-next-line no-restricted-globals
-  const newWindow = open(location, '_self');
-  // Close this window
-  newWindow.close();
-  return false;
-}
-
-let i = 0;
-function maximize(window, button) {
-  console.log(window);
-  console.log(button);
-  window.classList.toggle('maximize');
-  console.log(window.classList.contains('maximize'));
-  button.setAttribute('aria-label', (window.classList.contains('maximize') ? 'Restore' : 'Maximize'));
-  // element.style.width = ((i % 2) === 0 ? '400px': '300px');
-  i+= 1;
-}
-
-
-counter();
-document.getElementById('close-button').onclick = (() => closeWindow());
-document.getElementById('leave-button').onclick = (() => leave());
-document.getElementById('maximize-button').onclick = ((e) => maximize(document.getElementById('main-window'), e.target));
+const map = setupMap();
