@@ -1,10 +1,8 @@
-all: deps lint build
+all: deps build
 
 deps:
 	npm install
-lint:
-	npm run lint
 build:
 	npm run build
 start:
-	npm run start
+	npm run dev
