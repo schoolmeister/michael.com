@@ -1,17 +1,27 @@
 <script>
   export let title;
+
+  let window;
+  let minimized = false;
+
+  function minimize(element) {
+    minimized = !minimized;
+  }
 </script>
 
-<div class="window">
+<div class="window" class:minimized bind:this={window}>
   <div class="title-bar">
     <div class="title-bar-text">{title}</div>
     <div class="title-bar-controls">
-      <button aria-label="Minimize" />
-      <button aria-label="Maximize" />
-      <button aria-label="Close" />
+      <button aria-label="Minimize" on:click={(e) => (minimized = true)} />
+      <button aria-label="Maximize" on:click={(e) => (minimized = false)} />
+      <button
+        aria-label="Close"
+        on:click={(e) => window.parentNode.removeChild(window)}
+      />
     </div>
   </div>
-  <div class="window-body">
+  <div class="window-body" class:minimized>
     <slot>
       <p>There's so much room for activities!</p>
     </slot>
@@ -20,12 +30,20 @@
 
 <style>
   .window {
-    height: 100%;
     display: flex;
     flex-direction: column;
+    height: 100%;
   }
 
   .window-body {
     flex-grow: 1;
+  }
+
+  .minimized {
+    height: auto;
+  }
+
+  .minimized.window-body {
+    display: none;
   }
 </style>
