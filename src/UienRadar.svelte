@@ -43,7 +43,7 @@
       .addTo(map);
 
     let lc = L.control.locate().addTo(map);
-    lc.start();
+    // lc.start();
     return map;
   }
 
@@ -61,7 +61,7 @@
 
 <style>
   .map {
-    height: 600px;
+    height: 100%;
     width: 100%;
   }
 </style>
