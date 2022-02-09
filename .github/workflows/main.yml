@@ -19,7 +19,7 @@ jobs:
           node-version: "14.x"
       - uses: actions/cache@v1
         with:
-          path: node_modules
+          path: web/node_modules
           key: ${{ runner.os }}-js-${{ hashFiles('package-lock.json') }}
       - run: make deps
       - run: make build
@@ -34,7 +34,7 @@ jobs:
       - id: "upload-files"
         uses: "google-github-actions/upload-cloud-storage@v0"
         with:
-          path: "public"
+          path: "web/public"
           destination: "michael-com"
           parent: false
           headers: |-
