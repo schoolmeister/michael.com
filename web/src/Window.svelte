@@ -32,7 +32,10 @@
   .window {
     display: flex;
     flex-direction: column;
-    height: 100%;
+    width: 50vw;
+    height: 70vh;
+    position: fixed;
+    left: 25vw;
   }
 
   .window-body {

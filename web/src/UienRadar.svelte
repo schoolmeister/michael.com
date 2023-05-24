@@ -7,7 +7,7 @@
   import "leaflet.markercluster/dist/MarkerCluster.Default.css";
   import stores from "./stores.json";
 
-  const ICON_IMAGE = "assets/onion-red-32x32.png";
+  const ICON_IMAGE = "assets/uienradar.png";
   console.log(ICON_IMAGE);
   let ICON = L.icon({
     iconUrl: ICON_IMAGE,
