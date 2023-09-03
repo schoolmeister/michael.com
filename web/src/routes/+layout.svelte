@@ -16,12 +16,9 @@
 				<Icon image={image_tree} name="Raytracer" href="raytracer" />
 				<Icon image={image_notepad} name="Blog" href="blog" />
 				<Icon image={image_notepad} name="Ping Pong Tracker" href="pingpong" />
-				<a href="/">home</a>
 			</div>
 			<div id="window-space">
-				<Window title="my title">
-					<slot />
-				</Window>
+				<slot />
 			</div>
 		</div>
 	</main>

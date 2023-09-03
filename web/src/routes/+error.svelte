@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import Window from '$lib/Window.svelte';
 </script>
 
-<div>
+<Window title="Critical Error">
 	<h1>{$page.status}: {$page.error?.message}</h1>
-</div>
+</Window>

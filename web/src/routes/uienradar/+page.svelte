@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import Window from '$lib/Window.svelte';
 	import { browser } from '$app/environment';
 	import image_uienradar from '$lib/images/uienradar.png';
 	export let data;
@@ -64,7 +65,9 @@
 	});
 </script>
 
-<main bind:this={mapElement} class="map" />
+<Window title="Uienradar">
+	<main bind:this={mapElement} class="map" />
+</Window>
 
 <style>
 	@import 'leaflet/dist/leaflet.css';

@@ -4,11 +4,11 @@
 	export let href: string;
 </script>
 
-<a {href}>
-	<button class="icon" tabIndex="0">
+<a href={null} on:dblclick|preventDefault={(e) => (window.location.href = href)}>
+	<div class="icon" tabIndex="0">
 		<img src={image} alt="uienradar" />
 		<div class="title">{name}</div>
-	</button>
+	</div>
 </a>
 
 <style>
