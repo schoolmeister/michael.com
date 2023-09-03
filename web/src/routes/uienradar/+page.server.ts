@@ -1,5 +1,4 @@
-import stores from './stores.json';
-// import {geojson} from '@types/leaflet';
+import stores from '$lib/data/stores.json';
 
 import type { GeoJsonObject } from 'geojson';
 
