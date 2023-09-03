@@ -4,7 +4,7 @@
 	export let href: string;
 </script>
 
-<a href={null} on:dblclick|preventDefault={(e) => (window.location.href = href)}>
+<a {href}>
 	<div class="icon" tabIndex="0">
 		<img src={image} alt="uienradar" />
 		<div class="title">{name}</div>
