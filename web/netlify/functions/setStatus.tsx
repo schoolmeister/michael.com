@@ -11,9 +11,9 @@ export default async (req: Request, context: Context) => {
 	if (data.length > 100) {
 		throw new Error('Invalid data: string exceeds maximum length of 100 characters');
 	}
-	const regex = /^[a-zA-Z0-9\s, ]+$/;
-	if (!regex.test(data)) {
-		throw new Error('Invalid data: expected a well-behaved string');
+	const sentenceRegex = /^[a-zA-Z0-9\s.,?!]+$/;
+	if (!sentenceRegex.test(data)) {
+		throw new Error('Invalid data: expected a well-formed English sentence');
 	}
 	await toqua.set('status', data);
 
