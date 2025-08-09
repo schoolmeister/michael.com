@@ -17,7 +17,6 @@
 				<Icon image={image_tree} name="Raytracer" href="raytracer" />
 				<Icon image={image_notepad} name="Blog" href="blog" />
 				<Icon image={image_notepad} name="Ping Pong Tracker" href="pingpong" />
-				<Icon image={image_connected_world} name="michaël.com" href="logo" />
 				<Icon image={image_connected_world} name="michaël.com" href="logo3d" />
 			</div>
 			<div id="window-space">
