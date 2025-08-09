@@ -1,9 +1,9 @@
 <script lang="ts">
 </script>
 
-<main />
+<main></main>
 <slot />
-<main />
+<main></main>
 
 <style>
 </style>

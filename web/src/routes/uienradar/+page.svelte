@@ -1,4 +1,8 @@
 <script lang="ts">
+	import 'leaflet/dist/leaflet.css';
+	import 'leaflet.markercluster/dist/MarkerCluster.css';
+	import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+
 	import { onMount, onDestroy } from 'svelte';
 	import Window from '$lib/Window.svelte';
 	import { browser } from '$app/environment';
@@ -8,6 +12,7 @@
 	let mapElement: HTMLElement;
 	let map: import('leaflet').Map;
 	let L: typeof import('leaflet');
+	let ro: ResizeObserver | null = null;
 
 	function createMap(container: HTMLElement) {
 		console.log(image_uienradar);
@@ -25,9 +30,7 @@
 				maxZoom: 18,
 				id: 'mapbox/streets-v11',
 				tileSize: 512,
-				zoomOffset: -1,
-				accessToken:
-					'pk.eyJ1Ijoic2Nob29sbWVpc3RlciIsImEiOiJja3owY2F3d3kxYW85MzBteHN2aXZzOHl1In0.GdKYPEWxWqqsHornbQvUVg'
+				zoomOffset: -1
 			}
 		).addTo(map);
 
@@ -45,6 +48,17 @@
 			.addTo(map);
 
 		let lc = L.control.locate().addTo(map);
+		// Keep a small pan after ready to trigger loading of tiles in new visible area
+		map.whenReady(() => {
+			map.invalidateSize();
+			// slight nudge to force tile load bottom-right
+			setTimeout(() => {
+				if (!map) return;
+				const c = map.getCenter();
+				map.panTo(c, { animate: false });
+				map.invalidateSize();
+			}, 30);
+		});
 		return map;
 	}
 
@@ -54,28 +68,67 @@
 			await import('leaflet.markercluster');
 			L = await import('leaflet');
 			createMap(mapElement);
+			// Observe element size changes (drag-resize of custom Window does NOT trigger window.resize)
+			ro = new ResizeObserver(() => {
+				if (!map) return;
+				map.invalidateSize();
+			});
+			ro.observe(mapElement);
+			window.addEventListener('resize', handleWindowResize);
 		}
 	});
 
 	onDestroy(async () => {
+		if (browser) {
+			window.removeEventListener('resize', handleWindowResize);
+		}
+		if (ro) {
+			ro.disconnect();
+		}
 		if (map) {
 			console.log('Unloading Leaflet map.');
 			map.remove();
 		}
 	});
+
+	function handleWindowResize() {
+		if (!map) return;
+		map.invalidateSize();
+	}
 </script>
 
-<Window title="Uienradar">
-	<main bind:this={mapElement} class="map" />
+<Window
+	title="Uienradar"
+	on:resize={() => {
+		map && map.invalidateSize();
+	}}
+	on:resizeend={() => {
+		if (map) {
+			const c = map.getCenter();
+			map.invalidateSize();
+			// Force a re-center after size change to load tiles on newly exposed edges
+			map.setView(c, map.getZoom(), { animate: false });
+		}
+	}}
+>
+	<div class="map-wrapper">
+		<div bind:this={mapElement} class="map"></div>
+	</div>
 </Window>
 
 <style>
-	@import 'leaflet/dist/leaflet.css';
-	@import 'leaflet.markercluster/dist/MarkerCluster.css';
-	@import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
-
+	.map-wrapper {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		display: flex;
+	}
 	.map {
-		height: 50vh;
-		width: 50vw;
+		flex: 1;
+		/* Let it fill the window body */
+		width: 100%;
+		height: 100%;
 	}
 </style>
