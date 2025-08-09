@@ -4,6 +4,10 @@
 	import { createEventDispatcher } from 'svelte';
 
 	export let title: string;
+	export let initialWidth: number = 400;
+	export let initialHeight: number = 300;
+	export let initialX: number = 100;
+	export let initialY: number = 100;
 
 	let window: HTMLElement;
 	let draggable: Repositionable;
@@ -87,8 +91,12 @@
 	}
 </script>
 
-<Repositionable bind:this={draggable} initialPosition={{ x: '100px', y: '100px' }}>
-	<div class="window" bind:this={window}>
+<Repositionable bind:this={draggable} initialPosition={{ x: initialX + 'px', y: initialY + 'px' }}>
+	<div
+		class="window"
+		bind:this={window}
+		style={`width:${initialWidth}px;height:${initialHeight}px;`}
+	>
 		<DragController {draggable}>
 			<div class="title-bar">
 				<div class="title-bar-text">{title}</div>
@@ -138,9 +146,6 @@
 	.window {
 		display: flex;
 		flex-direction: column;
-		/* Provide an initial size */
-		width: 400px;
-		height: 300px;
 		position: relative;
 		box-sizing: border-box;
 	}

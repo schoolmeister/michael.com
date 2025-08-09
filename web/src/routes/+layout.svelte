@@ -5,6 +5,7 @@
 	import image_uienradar from '$lib/images/uienradar.png';
 	import image_tree from '$lib/images/tree-icon.png';
 	import image_notepad from '$lib/images/notepad.png';
+	import image_connected_world from '$lib/images/connected-world.png';
 	import Window from '$lib/Window.svelte';
 </script>
 
@@ -16,6 +17,8 @@
 				<Icon image={image_tree} name="Raytracer" href="raytracer" />
 				<Icon image={image_notepad} name="Blog" href="blog" />
 				<Icon image={image_notepad} name="Ping Pong Tracker" href="pingpong" />
+				<Icon image={image_connected_world} name="michaël.com" href="logo" />
+				<Icon image={image_connected_world} name="michaël.com" href="logo3d" />
 			</div>
 			<div id="window-space">
 				<slot />

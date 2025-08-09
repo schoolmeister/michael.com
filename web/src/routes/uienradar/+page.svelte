@@ -7,7 +7,9 @@
 	import Window from '$lib/Window.svelte';
 	import { browser } from '$app/environment';
 	import image_uienradar from '$lib/images/uienradar.png';
-	export let data;
+	// data removed from server load; we'll fetch client-side
+	let storesData: any = null;
+	let storesLayerAdded = false;
 
 	let mapElement: HTMLElement;
 	let map: import('leaflet').Map;
@@ -15,7 +17,6 @@
 	let ro: ResizeObserver | null = null;
 
 	function createMap(container: HTMLElement) {
-		console.log(image_uienradar);
 		let ICON = L.icon({
 			iconUrl: image_uienradar,
 			iconSize: [40, 40]
@@ -34,18 +35,7 @@
 			}
 		).addTo(map);
 
-		let storesLayer = L.geoJSON(data.stores, {
-			pointToLayer: function (feature, latlng) {
-				return L.marker(latlng, { icon: ICON });
-			}
-		});
-
-		L.markerClusterGroup({
-			disableClusteringAtZoom: 13,
-			spiderfyOnMaxZoom: false
-		})
-			.addLayer(storesLayer)
-			.addTo(map);
+		maybeAddStoresLayer(ICON);
 
 		let lc = L.control.locate().addTo(map);
 		// Keep a small pan after ready to trigger loading of tiles in new visible area
@@ -62,12 +52,35 @@
 		return map;
 	}
 
+	function maybeAddStoresLayer(icon: any) {
+		if (!map || !storesData || storesLayerAdded) return;
+		const layer = L.geoJSON(storesData, {
+			pointToLayer: (_feature, latlng) => L.marker(latlng, { icon })
+		});
+		L.markerClusterGroup({ disableClusteringAtZoom: 13, spiderfyOnMaxZoom: false })
+			.addLayer(layer)
+			.addTo(map);
+		storesLayerAdded = true;
+	}
+
 	onMount(async () => {
 		if (browser) {
 			await import('leaflet.locatecontrol');
 			await import('leaflet.markercluster');
 			L = await import('leaflet');
-			createMap(mapElement);
+			try {
+				const res = await fetch('/api/stores');
+				if (res.ok) {
+					storesData = await res.json();
+				} else {
+					console.error('Failed to load stores.json', res.status);
+				}
+			} catch (e) {
+				console.error('Error fetching stores', e);
+			}
+			createMap(mapElement); // map first, layer maybe added inside
+			// In case data arrived after map (unlikely but safe)
+			maybeAddStoresLayer(L.icon({ iconUrl: image_uienradar, iconSize: [40, 40] }));
 			// Observe element size changes (drag-resize of custom Window does NOT trigger window.resize)
 			ro = new ResizeObserver(() => {
 				if (!map) return;
@@ -98,6 +111,8 @@
 </script>
 
 <Window
+	initialHeight={500}
+	initialWidth={800}
 	title="Uienradar"
 	on:resize={() => {
 		map && map.invalidateSize();

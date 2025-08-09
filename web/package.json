@@ -41,6 +41,8 @@
 		"98.css": "^0.1.21",
 		"leaflet": "^1.9.4",
 		"leaflet.locatecontrol": "^0.84.2",
-		"leaflet.markercluster": "^1.5.3"
+		"leaflet.markercluster": "^1.5.3",
+		"three": "^0.179.1",
+		"troika-three-text": "^0.52.4"
 	}
 }
