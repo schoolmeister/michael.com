@@ -13,6 +13,7 @@
 	"devDependencies": {
 		"@fontsource/fira-mono": "^5.2.6",
 		"@neoconfetti/svelte": "^2.2.2",
+		"@netlify/plugin-lighthouse": "^6.0.1",
 		"@sveltejs/adapter-auto": "^6.0.2",
 		"@sveltejs/adapter-netlify": "^5.1.1",
 		"@sveltejs/kit": "^2.27.3",
