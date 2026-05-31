@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>Ascend — prototype 1 (core feel)</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #000;
+        overflow: hidden;
+        /* The prototype is mouse-drag (finger later). Stop the browser from
+           hijacking the drag with text-selection / scroll / touch gestures —
+           that would corrupt the very thing we're testing: drag feel. */
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: none;
+        overscroll-behavior: none;
+        cursor: crosshair;
+        font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      }
+      #game {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

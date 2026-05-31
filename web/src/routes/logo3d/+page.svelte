@@ -23,6 +23,7 @@
 	export let cloudNoiseAmp: number = 0.08; // vertex noise amplitude to soften cloud silhouette
 	// Background
 	export let enableXPBackground: boolean = true; // toggle Windows XP hill backdrop
+	export let xpBackgroundTopPortion: number = 0.5; // 0..1 portion of image height to display from top
 
 	// Metallic text tuning props
 	export let metalRoughness: number = 0.18; // lower = sharper reflections
@@ -56,6 +57,7 @@
 		accentLight: any,
 		specLight: any;
 	let xpTexture: any;
+	let clampWrap: any; // will hold THREE.ClampToEdgeWrapping after load
 	let textMesh: any, outlineMesh: any, grid: any; // grid will be a shader plane now
 	let gridMat: any;
 	let floatingObjects: any[] = [];
@@ -82,6 +84,7 @@
 
 	onMount(async () => {
 		const THREE = await import('three');
+		clampWrap = THREE.ClampToEdgeWrapping;
 		const { FontLoader } = await import('three/examples/jsm/loaders/FontLoader.js');
 		const { TextGeometry } = await import('three/examples/jsm/geometries/TextGeometry.js');
 		const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js');
@@ -103,7 +106,7 @@
 		// Scene & camera
 		scene = new THREE.Scene();
 		camera = new THREE.PerspectiveCamera(28, 1, 0.1, 100);
-		camera.position.set(0, 0.6, 5);
+		camera.position.set(0, 0, 5);
 		camera.lookAt(0, 0, 0);
 		scene.add(camera);
 
@@ -111,6 +114,11 @@
 		if (enableXPBackground) {
 			xpTexture = new THREE.TextureLoader().load(xpBg, () => {
 				xpTexture.colorSpace = THREE.SRGBColorSpace;
+				const portion = Math.min(Math.max(xpBackgroundTopPortion, 0.0), 1.0) || 0.0001;
+				xpTexture.wrapS = xpTexture.wrapT = THREE.ClampToEdgeWrapping;
+				xpTexture.repeat.set(1, portion);
+				xpTexture.offset.set(0, 1 - portion);
+				xpTexture.needsUpdate = true;
 				scene.background = xpTexture;
 			});
 		} else {
@@ -130,7 +138,7 @@
 		const gridSize = 400; // large to cover view
 		const gridGeom = new THREE.PlaneGeometry(gridSize, gridSize, 1, 1);
 		gridMat = new THREE.ShaderMaterial({
-			transparent: true,
+			transparent: false,
 			uniforms: {
 				uTime: { value: 0 },
 				uColor: { value: new THREE.Color(0x00afff) },

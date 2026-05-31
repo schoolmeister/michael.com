@@ -6,6 +6,7 @@
 	import image_tree from '$lib/images/tree-icon.png';
 	import image_notepad from '$lib/images/notepad.png';
 	import image_connected_world from '$lib/images/connected-world.png';
+	import image_climber from '$lib/images/climber.png';
 	import Window from '$lib/Window.svelte';
 </script>
 
@@ -18,6 +19,7 @@
 				<Icon image={image_notepad} name="Blog" href="blog" />
 				<Icon image={image_notepad} name="Ping Pong Tracker" href="pingpong" />
 				<Icon image={image_connected_world} name="michaël.com" href="logo3d" />
+				<Icon image={image_climber} name="Ascend" href="ascend" />
 			</div>
 			<div id="window-space">
 				<slot />

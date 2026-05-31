@@ -13,39 +13,17 @@
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <a
-	href={null}
+	{href}
 	on:click={(e) => {
+		// single click just prevents navigation (simulate desktop icon)
 		e.preventDefault();
 	}}
 	on:dblclick={(e) => {
-		e.target.click(); //dispatchEvent(new MouseEvent('click', { bubbles: true }));
-		// send click to child
-		console.log(e);
+		// Navigate on double click
+		e.preventDefault();
+		window.location.href = href;
 	}}
 >
-	<svelte:element this="a" {href}>
-		<!-- on:click={(e) => {
-        console.log('click!');
-        console.log(e.target);
-        if (!override) {
-            assign_href(null);
-            e.preventDefault();
-        } else {
-            console.log('routing to ' + href);
-        }
-        override = false;
-    }}
-    on:dblclick={(e) => {
-        console.log('double click!');
-        assign_href(href);
-        // e.preventDefault();
-        // override = true;
-        window.location.href = '/uienradar';
-        // console.log(e.target.parentNode);
-        // e.target?.parentNode?.click();
-    }} -->
-		<p>{assigned_href}</p>
-
-		<slot />
-	</svelte:element>
+	<p>{assigned_href}</p>
+	<slot />
 </a>
