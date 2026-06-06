@@ -49,6 +49,7 @@ export const PLAYER_LANE_GOOD_MULT = 0.2; // ×chance on the floor the player is
 export const OBSTACLE_REWARD_CHANCE = 0.7; // chance a hazard is "guarding" a nearby pickup
 export const PICKUP_AFTER_OBSTACLE = 2; // tiles after an obstacle the guarded pickup sits
 export const PICKUP_SPACER = 3;
+export const PICKUP_VIS_FLOAT = 0.5; // tiles above the floor a pickup hovers (grabbed at run height)
 export const PICKUP_WEIGHTS = { boots: 2, knife: 1, horns: 1 } as const;
 
 // ── Geyser (now JUMPABLE — clear the steam with a normal hop) ──────────────────

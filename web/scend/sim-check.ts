@@ -7,7 +7,7 @@
  */
 import * as C from './src/config';
 import { createGame, requestJump, update } from './src/sim';
-import { columnAt } from './src/world';
+import { platformAt } from './src/world';
 
 const VW = 760,
   VH = 520;
@@ -64,25 +64,28 @@ function run(label: string, jumpEvery: number): void {
 run('no-jump (falls in first gap)', 0);
 run('steady-hops (jump ~3x/sec)', 0.33);
 
-// Smart agent: jumps when the tile just ahead is a void gap or a lethal hazard. This proves
-// the level is FAIR — gaps are clearable with good timing — and reports how far skill goes.
+// Smart agent: on the 3 floors, if a hole is coming up on the current floor, jump to climb
+// (if the floor above is solid ahead) — otherwise let yourself drop. Also hop dry hazards.
+// Proves the world is FAIR: a valid path always exists from any floor.
 (function smartRun() {
   const dt = 1 / 60;
   let best = 0;
   let bestPeak = 0;
   let won = false;
+  const LA = Math.round(C.PLAYER_W); // small lookahead in px
   for (let attempt = 0; attempt < 40 && !won; attempt++) {
     const s = createGame(7000 + attempt, VW, VH);
     while (s.phase === 'running' && s.time < C.WIN_TIME) {
       const p = s.player;
       if (p.onGround) {
-        const col = Math.floor(p.x / C.TILE);
-        const ahead = columnAt(s.world, col + 1);
-        const danger =
-          !ahead || // void gap next
-          (ahead.kind === 'spike') ||
-          (ahead.kind === 'lava' && s.time >= p.wetUntil); // dry lava
-        if (danger) requestJump(s);
+        const here = platformAt(s.world, p.x + LA, p.lane);
+        const holeAhead = !here;
+        const dryHazard = here && (here.p.tiles[here.idx] === 'spike' ||
+          (here.p.tiles[here.idx] === 'lava' && s.time >= p.wetUntil));
+        const aboveSolid = p.lane + 1 < C.LANE_H.length && !!platformAt(s.world, p.x + LA, p.lane + 1);
+        if (dryHazard) requestJump(s);
+        else if (holeAhead && aboveSolid) requestJump(s); // climb to escape the hole
+        // else (hole + nothing above) → don't jump, drop to the floor below
       }
       update(s, dt);
     }
@@ -90,11 +93,9 @@ run('steady-hops (jump ~3x/sec)', 0.33);
     bestPeak = Math.max(bestPeak, s.peakSpeed);
     if (s.phase === 'won') won = true;
   }
-  console.log(
-    `smart-agent: best survival=${best.toFixed(1)}s peak=${Math.round(bestPeak)} won=${won}`
-  );
-  if (best < 4) {
-    console.error('FAIL: even edge-timed jumps die almost immediately — gaps look unfair');
+  console.log(`smart-agent: best survival=${best.toFixed(1)}s peak=${Math.round(bestPeak)} won=${won}`);
+  if (best < 5) {
+    console.error('FAIL: even a floor-aware agent dies almost immediately — generation looks unfair');
     process.exit(1);
   }
 })();

@@ -65,7 +65,7 @@ function addPickup(w: World, c: number, lane: number, r: () => number): void {
   const p: Pickup = {
     x: c * C.TILE + C.TILE / 2,
     lane,
-    floatTiles: C.LANE_H[lane], // sits on the surface → reachable just by being on the floor
+    floatTiles: C.LANE_H[lane] + C.PICKUP_VIS_FLOAT, // hovers just above the floor → grabbed at run height
     kind: pickWeighted(r(), C.PICKUP_WEIGHTS) as PickupKind,
     taken: false
   };
