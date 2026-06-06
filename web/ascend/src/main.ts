@@ -1,26 +1,27 @@
 /**
- * main.ts — bootstrap, asset load, game loop, wiring.
- * Loop: clamp dt → update sim → lerp camera → render. Restart on click / R.
+ * main.ts — bootstrap + loop + level switching. The body sim is in sim.ts; this just
+ * ticks it, renders, and handles level selection / reset / next-on-win.
  */
 
-import { CAMERA_LERP, MAX_DT } from './config';
-import { createGame, update } from './climb';
-import { loadAssets, type Assets } from './assets';
-import { attachInput, createPointer } from './input';
+import { MAX_DT } from './config';
+import { attachInput } from './input';
+import { LEVELS, makeSprayWall } from './levels';
 import { render } from './render';
+import { createGame, loadLevel, update } from './sim';
 import type { GameState } from './state';
+
+/** Selectable slots: the designed levels + one generated "Spray Wall" at the end. */
+const SPRAY_INDEX = LEVELS.length;
+const SLOTS = LEVELS.length + 1;
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
 const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-const pointer = createPointer();
-let state: GameState = createGame(window.innerWidth, window.innerHeight);
-let assets: Assets | null = null;
+let state: GameState = createGame(LEVELS[0], 0, window.innerWidth, window.innerHeight);
 
 function resize(): void {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
+  const w = window.innerWidth, h = window.innerHeight;
   canvas.width = Math.floor(w * dpr);
   canvas.height = Math.floor(h * dpr);
   canvas.style.width = `${w}px`;
@@ -32,26 +33,29 @@ function resize(): void {
 window.addEventListener('resize', resize);
 resize();
 
-function restart(): void {
-  state = createGame(state.viewW, state.viewH);
+function selectLevel(i: number): void {
+  if (i < 0 || i >= SLOTS) return;
+  // the last slot is the generated Spray Wall (re-rolled fresh each time it's selected)
+  const level = i === SPRAY_INDEX ? makeSprayWall() : LEVELS[i];
+  state = createGame(level, i, state.viewW, state.viewH);
+}
+function nextLevel(): void {
+  selectLevel((state.levelIndex + 1) % SLOTS);
 }
 
-// Debug hook for the headless screenshot harness (harmless in a prototype).
-(window as unknown as { __state?: () => GameState }).__state = () => state;
+attachInput(canvas, () => state);
 
-attachInput(canvas, pointer, () => state.phase === 'won' || state.phase === 'lost', restart);
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'r' || e.key === 'R') restart();
+  if (e.key === 'r' || e.key === 'R') loadLevel(state, state.level); // retry the current level/wall
+  else if (e.key === 'g' || e.key === 'G') selectLevel(SPRAY_INDEX); // roll a new spray wall
+  else if (e.key === 'n' || e.key === 'N') { if (state.phase === 'won') nextLevel(); }
+  else if (e.key >= '1' && e.key <= '9') selectLevel(parseInt(e.key, 10) - 1);
 });
+// click advances on the win screen
+canvas.addEventListener('pointerdown', () => { if (state.phase === 'won') nextLevel(); });
 
-function loadingScreen(msg: string): void {
-  ctx.fillStyle = '#05070d';
-  ctx.fillRect(0, 0, state.viewW, state.viewH);
-  ctx.fillStyle = 'rgba(220,200,150,0.85)';
-  ctx.font = '16px ui-monospace, monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText(msg, state.viewW / 2, state.viewH / 2);
-}
+// debug hook for the headless harness / playtester
+(window as unknown as { __state?: () => GameState }).__state = () => state;
 
 let last = performance.now();
 function frame(now: number): void {
@@ -59,24 +63,8 @@ function frame(now: number): void {
   last = now;
   if (dt > MAX_DT) dt = MAX_DT;
   if (dt < 0) dt = 0;
-
-  if (assets) {
-    update(state, dt, pointer);
-    state.cameraY += (state.climberY - state.cameraY) * Math.min(1, CAMERA_LERP * dt);
-    render(ctx, state, assets);
-  } else {
-    loadingScreen('lighting the lantern…');
-  }
+  update(state, dt);
+  render(ctx, state);
   requestAnimationFrame(frame);
 }
-
-loadAssets()
-  .then((a) => {
-    assets = a;
-  })
-  .catch((err) => {
-    console.error(err);
-    loadingScreen('failed to load assets — see console');
-  });
-
 requestAnimationFrame(frame);

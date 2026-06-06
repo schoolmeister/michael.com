@@ -1,160 +1,55 @@
 /**
- * config.ts — ALL feel-critical tuning constants live here.
+ * config.ts — ALL feel-critical tuning constants for Prototype #3: the four-limb /
+ * center-of-gravity verb. Ported from climb-4limb-test_5.html (the source of truth for
+ * feel) and extended with an OBJECTIVE: a tall, scrolling wall with a finish line to
+ * reach. The body mechanic is unchanged from the HTML; tune these for feel.
  *
- * Prototype #2 iteration. Changes from #1:
- *   - Input is now HOLD-CLICK directly on a hold (the drag is gone).
- *   - New skill verb: ROPE & ANCHOR. You sling protection around a rock horn; the
- *     seating angle must be right or it rips and you take a longer fall.
- *   - Reaches play as a visceral climbing animation; the old aim line is gone.
- *
- * TUNING ORDER: CLIMB_RESOLVE_DURATION first (the held breath), then the squeeze
- * (light vs stamina), then the anchor risk/reward (place cost vs fall danger).
+ * Spine (from Brief #1, unchanged): tension. The dark/doom-clock is NOT here yet — this
+ * prototype isolates the body mechanic + adds a goal + designed levels.
  */
 
-export type Mode = 'feel' | 'dread';
-export const MODE = 'dread' as Mode;
+// ── The body mechanic (verbatim from the proven HTML prototype) ──────────────
+export const HOLD_R = 13; // visual hold radius (world px)
+export const GRAB_DIST = 30; // how close a limb must be dropped to a hold to grab it
+export const LIMB_REACH = 150; // max distance a limb can be from the CoG
+export const LEAN_RANGE = 70; // how far the body can lean from the support centroid
+// (was 46 — widened so a deliberate lean can actually relocate the CoG enough to relieve
+//  a loaded hand / fix a bad angle. "Fine control" needs real range to matter.)
+export const HAND_STAM_MAX = 100;
+export const GOOD_MARGIN = 0.78; // goodness ≥ this ⇒ no angle-badness (narrower = harder)
+export const DRAIN_BAD = 40; // hand stamina/sec when fully loaded on a fully bad hold
+export const ANGLE_TOLERANCE = 1.0; // good-side cone forgiveness (higher = more forgiving)
+/** Drain = DRAIN_BAD × badness × (load × LOAD_DRAIN_GAIN). The gain maps a "full limb's
+ *  worth" of load (~0.25 share) on a fully-bad hold to ~DRAIN_BAD/sec. Named (was a magic
+ *  `*4` in sim.ts) so the drain↔load coupling lives with the other feel knobs. */
+export const LOAD_DRAIN_GAIN = 4;
 
-// ───────────────────────────────────────────────────────────────────────────
-//  THE SINGLE MOST IMPORTANT NUMBER — the held-breath length of a reach.
-// ───────────────────────────────────────────────────────────────────────────
-export const CLIMB_RESOLVE_DURATION = 1.7;
-export const CLIMB_EASE_POWER = 2.1;
+// load model
+export const LOAD_BELOW_BIAS = 1.8; // a contact BELOW the CoG (feet you stand on) takes more
+export const LOAD_NEAR_BIAS = 1.2; // proximity-to-CoG concentrates load
+/** Feet soak at most this fraction of total load; the rest is forced onto the hands.
+ *  Lowered 0.62 → 0.45 so hands carry MEANINGFUL, variable weight (the neutral stance no
+ *  longer parks most of it on the feet) — which is what makes shifting weight FELT. */
+export const FOOT_ABSORB_MAX = 0.45;
+/** Per-hand minimum load (hands never fully rest). Lowered 0.12 → 0.05 so the working
+ *  range (resting → straining) is wide enough that relieving a hand is a real, felt change
+ *  rather than a rounding error. Still nonzero → the clock never fully stops. */
+export const HAND_MIN_LOAD = 0.05;
 
-// ───────────────────────────────────────────────────────────────────────────
-//  LIGHT — the global doom clock (the lantern). Always draining.
-// ───────────────────────────────────────────────────────────────────────────
-export const LIGHT_MAX = 100;
-export const LIGHT_DRAIN_RATE = MODE === 'feel' ? 0.8 : 1.55;
-export const LIGHT_MOVE_BASE = 0.6;
-export const LIGHT_PER_REACH_PX = 0.004;
+/** Stamina restored to a re-gripped hand that had slipped to 0 (HTML used 60%). */
+export const REGRAB_STAM_FRAC = 0.6;
 
-// ───────────────────────────────────────────────────────────────────────────
-//  STAMINA — local pressure. Pushes you to rest; resting costs light.
-// ───────────────────────────────────────────────────────────────────────────
-export const STAMINA_MAX = 100;
-export const STAMINA_RECOVER_RATE = MODE === 'feel' ? 26 : 20;
-export const STAMINA_MOVE_BASE = 5;
-export const STAMINA_PER_REACH_PX = 0.075;
+// ── Objective / level / camera (new in #3 — gives the verb a goal) ───────────
+/** The climbable column is a fixed world width, centred in the viewport. Levels author
+ *  hold x in [0, WORLD_WIDTH]. The wall scrolls vertically; +Y is DOWN (canvas-style),
+ *  so the TOP of a level (the finish) is the SMALLEST y. */
+export const WORLD_WIDTH = 460;
 
-// ───────────────────────────────────────────────────────────────────────────
-//  HOLD TYPES — grip quality. The thing darkness HIDES from you.
-// ───────────────────────────────────────────────────────────────────────────
-export type HoldType = 'jug' | 'ledge' | 'flake' | 'pocket';
+/** Camera keeps the CoG at this fraction down the viewport; lerps for smoothness. */
+export const CAM_ANCHOR = 0.55;
+export const CAMERA_LERP = 8;
 
-export interface GripSpec {
-  mult: number; // stamina cost multiplier
-  width: number; // on-wall draw width (world px)
-  sprite: HoldType;
-  weight: number; // spawn weight
-  /** Can a horn/corner be slung here for protection? Flakes/ledges yes, pockets no. */
-  anchorable: boolean;
-}
+/** After a fall, this long until the level resets to its start. */
+export const FALL_RESET_DELAY = 1.0;
 
-export const GRIPS: Record<HoldType, GripSpec> = {
-  jug: { mult: 0.6, width: 82, sprite: 'jug', weight: 2, anchorable: true },
-  ledge: { mult: 0.95, width: 74, sprite: 'ledge', weight: 3, anchorable: true },
-  flake: { mult: 1.25, width: 66, sprite: 'flake', weight: 3, anchorable: true },
-  pocket: { mult: 1.8, width: 46, sprite: 'pocket', weight: 2, anchorable: false }, // crimp: nothing to sling
-};
-
-/** Higher up the wall, grips turn nastier (more flake/pocket). */
-export const HARD_GRIP_BIAS_AT_SUMMIT = 2.2;
-
-// ───────────────────────────────────────────────────────────────────────────
-//  INPUT — hold-click directly on a hold (NO drag).
-// ───────────────────────────────────────────────────────────────────────────
-/** Screen-px radius around a hold's centre that counts as "pressing that hold".
- *  Generous — commitment, not precision. */
-export const HOLD_HIT_RADIUS = 46;
-/** Screen-px radius around the current hold's HORN that starts anchor placement. */
-export const HORN_HIT_RADIUS = 40;
-
-// ───────────────────────────────────────────────────────────────────────────
-//  ABORT / SLIP — releasing a reach early, or strength giving out mid-reach.
-//  A slip is now a FALL (see below) — the rope may or may not catch it.
-// ───────────────────────────────────────────────────────────────────────────
-export const ABORT_STAMINA_PENALTY = MODE === 'feel' ? 6 : 10;
-export const ABORT_LIGHT_PENALTY = MODE === 'feel' ? 2 : 3.5;
-export const ABORT_FLASH_DURATION = 0.7;
-
-// ───────────────────────────────────────────────────────────────────────────
-//  REACH & ROUTE — the persistent wall (generated once).
-// ───────────────────────────────────────────────────────────────────────────
-export const REACH_MAX = 240; // physical reach radius (world px)
-export const REACH_MIN_DY = 26; // a hold must be this far above to be a valid move
-export const ROUTE_WIDTH = 480;
-export const ROW_SPACING = 96;
-export const ROW_JITTER_Y = 22;
-export const HOLDS_PER_ROW_MIN = 2;
-export const HOLDS_PER_ROW_MAX = 3;
-export const WALL_HEIGHT = 2000;
-
-// ───────────────────────────────────────────────────────────────────────────
-//  ROPE & ANCHOR — the new skill verb. Sling protection on a horn; seat the
-//  angle right or it rips. Anchors bound how far you fall.
-// ───────────────────────────────────────────────────────────────────────────
-
-/** Placing an anchor takes effort + time (light keeps draining while you seat it). */
-export const ANCHOR_PLACE_STAMINA_COST = 8;
-/** Placing pro burns real lantern — that's the squeeze the verb exists to create:
- *  do you spend precious light buying safety, or run it out and pray? */
-export const ANCHOR_PLACE_LIGHT_COST = 6;
-
-/** A horn's safe cone: the angular wedge (radians, half-width) within which the
- *  sling seats securely. Wider = more forgiving. The cone CENTRE is per-horn
- *  (generated), pointing into the load-bearing notch of the corner. */
-export const HORN_CONE_HALF_WIDTH = 0.55; // ~31°
-
-/** Seating quality (0..1, from anchor.ts) thresholds:
- *  >= SOLID  → bomber (green), holds any fall.
- *  >= MARGINAL → yellow, holds but may rip on a hard (long) fall.
- *  <  MARGINAL → red, rips on the first load. */
-export const ANCHOR_SOLID_QUALITY = 0.62;
-export const ANCHOR_MARGINAL_QUALITY = 0.3;
-
-/** Probability a given anchorable hold actually sports a slingable horn. Keep
- *  below 1 so "is there pro here?" is a real routing question. */
-export const HORN_SPAWN_PROBABILITY = 0.55;
-
-/** Verlet rope (visual). Owned/used by render; here so feel lives in one place. */
-export const ROPE_SEGMENTS = 14;
-export const ROPE_GRAVITY = 900; // px/s^2 sag
-export const ROPE_SLACK = 1.18; // rope length = straight-line dist * this
-export const ROPE_ITERATIONS = 12;
-
-// ───────────────────────────────────────────────────────────────────────────
-//  FALLS — a slip drops you until the rope (last anchor) arrests you, or it rips.
-// ───────────────────────────────────────────────────────────────────────────
-
-/** Downward fall speed (world px/s) of the fall animation. */
-export const FALL_SPEED = 1100;
-/** Extra distance you fall BELOW the catching anchor (rope stretch/slack feel). */
-export const FALL_SLACK = 46;
-/** Stamina burned per world-px fallen when the rope catches you (a hard catch hurts). */
-export const FALL_STAMINA_PER_PX = 0.06;
-/** A marginal anchor rips if the fall above it exceeds this (world px). */
-export const ANCHOR_RIP_FALL_DISTANCE = 150;
-/** An UNPROTECTED fall (no anchor / ripped through all) of more than this many world
- *  px down to the ground = death. Below it you SURVIVE but take a brutal, graded
- *  battering (see FALL_GROUND_LIGHT_PENALTY) — so run-out is a rising dread, not a
- *  binary "safe → instant death" cliff. */
-export const FALL_DEATH_HEIGHT = 560;
-/** Light torn away by a survivable unprotected ground fall, scaled by fall height
- *  (per world px). A near-deck fall should cost a frightening chunk of lantern. */
-export const FALL_GROUND_LIGHT_PENALTY = 0.07;
-
-// ───────────────────────────────────────────────────────────────────────────
-//  SIGHTLINE — darkness steals INFORMATION (now incl. horn safe-cones).
-// ───────────────────────────────────────────────────────────────────────────
-export const SIGHT_RADIUS_AT_FULL_LIGHT = 900;
-export const SIGHT_RADIUS_AT_DARK = 165;
-export const CLARITY_RADIUS_AT_FULL_LIGHT = 300;
-export const CLARITY_RADIUS_AT_DARK = 88;
-export const SIGHT_CALM_THRESHOLD = 0.62;
-
-// ───────────────────────────────────────────────────────────────────────────
-//  CAMERA / MISC
-// ───────────────────────────────────────────────────────────────────────────
-export const CLIMBER_SCREEN_ANCHOR = 0.62;
-export const CAMERA_LERP = 5.5;
 export const MAX_DT = 1 / 20;

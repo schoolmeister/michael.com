@@ -1,134 +1,80 @@
 /**
- * state.ts — the game state model. Plain data, no behaviour.
+ * state.ts — the type hub + game-state shape. Plain data, no behaviour.
+ * (Behaviour lives in sim.ts; levels in levels.ts.)
  *
- * World coords: +Y is UP (height climbed), +X is right. Floor y=0, summit y=WALL_HEIGHT.
- * The wall is a PERSISTENT field of holds. The climber occupies one hold, reaches to
- * nearby ones (HOLD-CLICK, no drag), and trails a rope down to its last placed anchor.
+ * Coords: world space, +Y DOWN (canvas style). The wall is a tall column WORLD_WIDTH
+ * wide; the finish is near the top (small y). The camera scrolls vertically.
  */
 
-import { LIGHT_MAX, STAMINA_MAX, type HoldType } from './config';
-
-export type Phase =
-  | 'choosing' // secured on a hold, resting; may reach to a hold OR place an anchor
-  | 'reaching' // holding through a reach — the climb animation plays
-  | 'anchoring' // holding on a horn, aiming the sling's seating angle
-  | 'falling' // a slip is animating: dropping until the rope catches (or rips)
-  | 'won'
-  | 'lost';
+export type LimbName = 'LH' | 'RH' | 'LF' | 'RF';
+export type LimbType = 'hand' | 'foot';
 
 export interface Hold {
-  id: number;
   x: number;
   y: number;
-  type: HoldType;
-  row: number;
-  gripMult: number;
-  width: number;
-  /** Does this hold have a slingable horn for protection? (set in holds.ts) */
-  hasHorn: boolean;
-  /** Horn anchor point (world px) — offset slightly from the hold centre. */
-  hornX: number;
-  hornY: number;
-  /** Safe-cone CENTRE direction at this horn (radians, world: 0=+x, PI/2=+y up).
-   *  The sling seats securely when aimed within HORN_CONE_HALF_WIDTH of this. */
-  hornConeCenter: number;
+  ang: number; // good-side direction (points toward the side you should pull from)
 }
 
-/** Placed protection. Anchors are ordered low→high in GameState.anchors. */
-export interface Anchor {
-  id: number;
+export interface Limb {
+  name: LimbName;
+  type: LimbType;
   x: number;
   y: number;
-  holdId: number;
-  quality: number; // 0..1 seating security at placement time (from anchor.ts)
+  hold: Hold | null; // the hold this limb is gripping (null = dangling)
+  stam: number; // hand stamina (feet never tire); 0..HAND_STAM_MAX
+  load: number; // share of bodyweight currently borne (0..1), set each tick
 }
 
-/** Raw pointer state. input.ts writes it; the sim reads it. */
-export interface Pointer {
-  down: boolean;
-  x: number; // canvas/screen px
-  y: number;
-  startX: number; // where the current press began (screen px)
-  startY: number;
+export interface Climber {
+  body: { x: number; y: number };
+  lean: { x: number; y: number };
+  limbs: Limb[]; // [LH, RH, LF, RF]
+}
+
+/** An in-progress aim (drag). The real limb does NOT move until release commits it. */
+export interface Drag {
+  kind: 'limb' | 'body';
+  limb?: Limb;
+  aimX: number;
+  aimY: number;
+  aimHold: Hold | null;
+}
+
+export type Phase = 'climbing' | 'fallen' | 'won';
+
+/** A designed level. Hold x in [0, WORLD_WIDTH]; y grows downward; finishY is near the
+ *  top (small y). `start` indexes into `holds` for each limb's opening grip. */
+export interface Level {
+  name: string;
+  holds: { x: number; y: number; ang: number }[];
+  start: Record<LimbName, number>;
+  finishY: number;
+  /** World height (for camera clamp / backdrop). Bottom of the wall is y = height. */
+  height: number;
 }
 
 export interface GameState {
   phase: Phase;
-
-  light: number;
-  stamina: number;
-
-  // The persistent wall.
   holds: Hold[];
-  summitHoldId: number;
+  climber: Climber;
+  drag: Drag | null;
 
-  // Climber.
-  currentHoldId: number;
-  climberX: number; // world pos (animates during reach/fall)
-  climberY: number;
-  facing: 1 | -1; // -1 faces left (sprite default), 1 faces right
-
-  // Reach options (recomputed each 'choosing').
-  reachable: Hold[];
-  /** Reachable hold the cursor is hovering (highlight), or null. */
-  hoverHoldId: number | null;
-  /** True when the cursor is over the current hold's placeable horn (highlight). */
-  hoverHorn: boolean;
-
-  // Active reach (phase === 'reaching').
-  committedId: number | null;
-  resolveProgress: number; // 0..1
-  moveStartX: number;
-  moveStartY: number;
-
-  // Rope & anchors.
-  anchors: Anchor[]; // placed protection, ordered low→high
-  ropeAnchorId: number | null; // anchor the rope runs to; null = ground belay (y=0)
-
-  // Anchor placement (phase === 'anchoring').
-  placingHoldId: number | null; // the horn being seated
-  seatAngle: number; // current aim (radians, world) set by the pointer
-
-  // Fall (phase === 'falling').
-  fallFromY: number; // height the slip began
-  fallToY: number; // height the rope/ground will arrest at
-  fallProgress: number; // 0..1 down the fall
-  fallRipped: boolean; // did an anchor rip during this fall (for feedback)
-
-  // Gate: must RELEASE before a new move/placement (no auto-repeat).
-  armed: boolean;
-
-  // Feedback
-  abortFlash: number; // seconds left on the slip flash
-  slipKick: number; // seconds left on the downward camera jolt
-  strain: number; // 0..1 visual strain during a hard reach
-
-  // Camera.
+  fallTimer: number; // seconds since a fall (drives auto-reset)
   cameraY: number;
 
-  // Bookkeeping
+  levelIndex: number;
+  /** The active level object — held so a fall resets THIS level (incl. a generated
+   *  spray wall, which isn't in the static LEVELS array). */
+  level: Level;
+  finishY: number;
+  worldHeight: number;
+
+  // bookkeeping / "rewarding" stats
   elapsed: number;
-  moves: number;
-  nextHoldId: number;
-  nextAnchorId: number;
+  moves: number; // committed limb placements
+  winTime: number; // elapsed at the moment of topping out
+  winMoves: number;
 
   viewW: number;
   viewH: number;
-}
-
-export const lightFraction = (s: GameState) => s.light / LIGHT_MAX;
-export const staminaFraction = (s: GameState) => s.stamina / STAMINA_MAX;
-export const holdById = (s: GameState, id: number | null): Hold | undefined =>
-  id == null ? undefined : s.holds.find((h) => h.id === id);
-export const anchorById = (s: GameState, id: number | null): Anchor | undefined =>
-  id == null ? undefined : s.anchors.find((a) => a.id === id);
-
-/** World Y the rope currently runs down to (last anchor, or ground). */
-export function ropeBaseY(s: GameState): number {
-  const a = anchorById(s, s.ropeAnchorId);
-  return a ? a.y : 0;
-}
-export function ropeBaseX(s: GameState): number {
-  const a = anchorById(s, s.ropeAnchorId);
-  return a ? a.x : s.climberX;
 }

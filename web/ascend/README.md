@@ -1,95 +1,77 @@
-# Ascend — Prototype #1 (core-feel test)
+# Ascend — Prototype #2 ("maintain the hold")
 
-A **disposable** prototype. It exists to answer one question:
+A **disposable** core-verb prototype. Prototype #1 (hold-click / rope-and-anchor) was
+built, played, and found **boring** — the verb was at the wrong altitude. Prototype #2
+tests a new verb. See `game-protoype-2.md` for the full brief (and `game-protoype-1.md` /
+`SPEC-iteration-2.md` for the superseded history).
 
-> Does dragging-and-holding through a slow climb, while the light drains and your
-> sightline shrinks into darkness, feel like **dread** — or like a **chore**?
+> **The one question:** does feathering a sketchy hold into its secure zone while the
+> light drains — and choosing the moment to trust your weight — feel like **calculated
+> risk you handled** (tense, satisfying), or like **babysitting a meter** (a chore)?
 
-Gray boxes only. Throwaway by design. See `game-protoype-1.md` for the full brief.
+Gray boxes only, on purpose: prove the verb before any art.
 
-## Run it
+## Run it (this game is vendored inside the SvelteKit site)
 
-```bash
-npm install
-npm run dev
-```
-
-Open the printed `http://localhost:5173/` and **play it with your hands** (mouse now,
-finger later). Edit any number in `src/config.ts`, save, and the page hot-reloads —
-that's the edit → refresh → feel loop the whole prototype is built around.
+From the `web/` directory:
 
 ```bash
-npm run build   # typecheck (tsc --noEmit) + production build, to confirm it's clean
+npm run game:dev     # vite dev server for the game (HMR) — open the printed localhost URL
+npm run game:build   # bundles to ../static/ascend-game/ (served by the /ascend route's iframe)
 ```
 
-## How to play  (iteration #2 — hold-click + rope & anchor)
+Typecheck the game (strict):
 
-- You climb a **persistent wall** of holds. The reachable ones above you **glow**;
-  the rest of the wall is visible only as shapes fading into the dark.
-- **Climb:** press and **HOLD directly on a glowing hold**. A climb animation plays
-  over ~1.7s — keep holding. **Release early = you slip and FALL.** Each move is a
-  fresh press (holding the cursor down does *not* auto-climb).
-- A hold's glow is **RED** when you can't afford the reach (its `⚡` stamina cost
-  exceeds your stamina): committing to it *will* slip you mid-move. Rest, or place
-  pro first. So a slip is an informed gamble, never a surprise.
-- **Place protection:** instead of reaching, press-and-hold on your current hold's
-  **horn** (a nub — only some holds have one), **aim the sling** into its green
-  **safe cone**, and release. A seat in the cone is solid (green); off to the side
-  is bad (red) and rips when loaded. **Darkness hides the cone**, so placing good
-  pro late is a gamble. Placing pro costs real lantern — that's the trade.
-- The rope trails to your **last anchor** (or the ground belay). The **RUN-OUT** HUD
-  shows how far you are above it = how big a fall you're risking. Falls are caught by
-  good pro, *rip* through bad pro (you fall further), or — high and unprotected — you
-  **deck** (death). Lower unprotected falls are survivable but batter the lantern.
-- **The squeeze:** the lantern always drains (even while you think). Stamina recovers
-  only while planted — but resting spends light. Push too hard and you slip in the
-  dark; rest too long and the lantern dies.
-- Reach the **▲ SUMMIT ▲** to win. Light hits zero → the dark takes you. `R`/click to retry.
+```bash
+cd ascend && npx tsc --noEmit -p tsconfig.json
+```
 
-## Tuning (read `src/config.ts` — everything feel-critical is there)
+Edit any number in `src/config.ts`, save, refresh — that's the edit → feel loop.
 
-`MODE` in `config.ts` switches the whole tuning between:
+## How to play
 
-- `'feel'` — generous meters to isolate the climb verb (use this to tune
-  **`CLIMB_RESOLVE_DURATION`**, the single most important number, until a held
-  move is a held breath not a loading bar).
-- `'dread'` (the default) — tight lantern, fast-closing dark. The scary version.
+- **Planted (choosing):** three candidate holds glow above you, labelled by hardness
+  (`JUG` → `OK` → `RISKY` → `SKETCH`). Harder = **more height gained** but harder to
+  hold. Stamina recovers while you rest here — but the lantern keeps draining. **Click a
+  hold** to reach it.
+- **Maintaining:** the hold starts unstable — a marker drifts down. **HOLD the mouse** to
+  push it up; release to let it fall. **Feather it into the green secure zone.** While
+  in-zone a **SAFETY** bar builds; out-of-zone it stalls and stamina bleeds faster. Low
+  stamina weakens your push, so tiredness compounds.
+- **Commit (Space):** once safety is past the red danger-line, press **Space** to trust
+  your weight and ascend. Commit **early** = fast, less light/stamina, but you carry an
+  off-balance start into the next hold. Commit **late** (full safety) = safe but costly.
+  Commit **below the danger-line** and the hold blows — you slip back, big stamina hit.
+- **Lose** if stamina gives out while hanging, or the lantern hits zero. **Win** at the
+  summit. `R` or click to retry.
 
-Key dread knobs, with the curve that matters most:
+## Tuning (`src/config.ts` — everything feel-critical is there)
 
-- `CLARITY_RADIUS_AT_FULL_LIGHT` / `clarityRadius()` in `sightline.ts` — how soon
-  you stop being able to *read* grips. This degrades ~linearly with the lantern,
-  so the read-the-wall gamble lives across the whole climb (not just the last
-  seconds). This is the highest-leverage feel knob after `CLIMB_RESOLVE_DURATION`.
-- `LIGHT_DRAIN_RATE` vs `STAMINA_RECOVER_RATE` — the squeeze. Tuned so a sensible
-  climber *just barely* wins (verify with the sim harness below).
-- `GRIPS` + `HARD_GRIP_BIAS_AT_SUMMIT` — grip costs and how nasty the wall gets up high.
-- `ANCHOR_PLACE_LIGHT_COST` — how much lantern placing pro costs (the safety-vs-light
-  trade). `HORN_CONE_HALF_WIDTH` / `ANCHOR_SOLID_QUALITY` — how forgiving seating is.
-- `FALL_DEATH_HEIGHT` / `FALL_GROUND_LIGHT_PENALTY` — the run-out danger curve: how far
-  an unprotected fall can be before it kills vs merely batters you.
+`MODE` flips between `'feel'` (generous, isolate the verb — the default) and `'squeeze'`
+(tight light/stamina). Per the brief:
 
-See `SPEC-iteration-2.md` for the full design of the hold-click + rope/anchor model.
+1. Get the **maintain feel** right first: `MARKER_FALL_RATE`, `PUSH_STRENGTH`,
+   `MARKER_DAMP` (and `ZONE_HEIGHT_*`). Does feathering feel like a physical negotiation?
+2. **Only then** tighten `LIGHT_DRAIN_RATE` vs the stamina drains for the squeeze.
+3. `MIN_COMMIT_SAFETY` + the `COMMIT_*` penalties shape the early-vs-late commit gamble.
+4. `HARD_FALL_MULT` / `ZONE_HEIGHT_HARD` / `ZONE_WANDER_MAX` / `REACH_DY_*` are the
+   hardness model (hard holds: faster drift, narrower/wandering zone, bigger height).
 
-## Dev tools (throwaway, but handy for "tune the feel")
+## Files
 
-- `sim-check.ts` — a headless logic harness. Drives the sim with smart / idle /
-  exploit players and asserts winnability + that the auto-chain exploit is dead.
-  Run: `npx esbuild sim-check.ts --bundle --platform=node --format=esm --outfile=/tmp/s.mjs && node /tmp/s.mjs`
-- `shoot.mjs` — drives the running game in headless Chromium (Playwright) and
-  writes screenshots to `/tmp/ascend-*.png` at given light levels. Run: `node shoot.mjs`
-  (dev server must be up). The game exposes `window.__state()` for the harness.
+| file          | does |
+|---------------|------|
+| `config.ts`   | **all** feel-critical tuning constants |
+| `state.ts`    | state model, phases, candidate generation |
+| `input.ts`    | mouse-hold (push) + Space (commit) + restart |
+| `maintain.ts` | the maintain mechanic (marker physics, zone, safety) + the tick + camera map |
+| `render.ts`   | gray-box rendering: wall, climber, candidates, the maintain UI, meters |
+| `main.ts`     | game loop, resize, restart wiring |
 
-## Files (one responsibility each)
+## Dev tools (throwaway)
 
-| file            | does |
-|-----------------|------|
-| `config.ts`     | **all** feel-critical tuning constants |
-| `state.ts`      | game state model + phases (persistent wall) |
-| `input.ts`      | mouse press/drag/hold/release → a raw pointer |
-| `climb.ts`      | new-game build + the sim tick: phase machine, drag→commit, resolve, slip |
-| `holds.ts`      | generating the persistent route, reachability, grip/cost model |
-| `sightline.ts`  | light level → sight radius (silhouettes) & clarity radius (readable) |
-| `assets.ts`     | preloads sprites; keys the white background out of the climber |
-| `render.ts`     | rock face, sky/abyss, sprite holds, climber + lantern, darkness, HUD |
-| `main.ts`       | asset load, game loop, camera, resize, restart wiring |
+- `sim-check.ts` — headless controllability harness (feathering wins; passive / instant-commit
+  lose). Run: `npx esbuild sim-check.ts --bundle --platform=node --format=esm --outfile=/tmp/s.mjs && node /tmp/s.mjs`
+- `shoot.mjs` — Playwright screenshotter of the UI states (needs `playwright` installed;
+  point it at the dev server with `URL=http://localhost:PORT/ node shoot.mjs`). It only
+  talks to the dev server over HTTP, so run it from anywhere Playwright resolves.

@@ -1,63 +1,46 @@
 /**
- * assets.ts — preload sprites, and key the white background out of the climber.
+ * assets.ts — lazy image loading for the render module.
  *
- * The climber art ships on a solid white-ish background (not real transparency),
- * which renders as an ugly card. We strip near-white pixels to alpha 0 at load
- * (with a soft edge) so the figure sits on the wall cleanly. Rough but it's a
- * prototype. The rock holds are already transparent, so they're used as-is.
+ * Images are kicked off on first import (side-effect of `load()` below) and drawn only
+ * once `.ready` is true. The render code uses a gray-box fallback while loading, so the
+ * game looks fine whether or not the bitmaps have arrived yet (and main.ts stays untouched).
+ *
+ * Paths are RELATIVE (`assets/NAME.png`, no leading slash) so they resolve correctly in
+ * BOTH the dev server (document at `/`) AND the production build (vite base `./`, served
+ * under `/ascend-game/` and iframed by the /ascend route). An absolute `/assets/...` would
+ * 404 in production and silently fall back to gray boxes on the live site.
  */
 
-import type { HoldType } from './config';
-
-export type Sprite = HTMLImageElement | HTMLCanvasElement;
-
-export interface Assets {
-  climber: Sprite;
-  holds: Record<HoldType, HTMLImageElement>;
+export interface Sprite {
+  img: HTMLImageElement;
+  ready: boolean;
+  /** natural aspect ratio (w/h); 1 until loaded. */
+  aspect: number;
 }
 
-function load(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`failed to load ${src}`));
-    img.src = src;
-  });
+function load(src: string): Sprite {
+  const sprite: Sprite = { img: new Image(), ready: false, aspect: 1 };
+  sprite.img.onload = () => {
+    sprite.ready = true;
+    sprite.aspect = sprite.img.naturalWidth / Math.max(1, sprite.img.naturalHeight);
+  };
+  sprite.img.src = src;
+  return sprite;
 }
 
-/** Turn near-white pixels transparent (soft threshold) and trim to content. */
-function keyOutWhite(img: HTMLImageElement): HTMLCanvasElement {
-  const c = document.createElement('canvas');
-  c.width = img.width;
-  c.height = img.height;
-  const g = c.getContext('2d')!;
-  g.drawImage(img, 0, 0);
-  const data = g.getImageData(0, 0, c.width, c.height);
-  const px = data.data;
-  for (let i = 0; i < px.length; i += 4) {
-    const r = px[i], gr = px[i + 1], b = px[i + 2];
-    const min = Math.min(r, gr, b);
-    // very light + low saturation → background
-    if (min > 232 && Math.max(r, gr, b) - min < 22) {
-      px[i + 3] = 0;
-    } else if (min > 210 && Math.max(r, gr, b) - min < 30) {
-      px[i + 3] = Math.round(px[i + 3] * (1 - (min - 210) / 22)); // soft edge
-    }
-  }
-  g.putImageData(data, 0, 0);
-  return c;
-}
+/** The lantern-mountaineer, drawn as the torso at the CoG. */
+export const climber = load('assets/climber.png');
 
-export async function loadAssets(): Promise<Assets> {
-  // Resolve relative to Vite's base URL so the game works both standalone
-  // (served at /) and embedded under a subpath (e.g. /ascend-game/).
-  const base = import.meta.env.BASE_URL;
-  const [climber, jug, ledge, flake, pocket] = await Promise.all([
-    load(`${base}assets/climber.png`),
-    load(`${base}assets/hold-jug.png`),
-    load(`${base}assets/hold-ledge.png`),
-    load(`${base}assets/hold-flake.png`),
-    load(`${base}assets/hold-pocket.png`),
-  ]);
-  return { climber: keyOutWhite(climber), holds: { jug, ledge, flake, pocket } };
+/** Rock-hold variants. Index a hold into one of these deterministically by position. */
+export const holdSprites: Sprite[] = [
+  load('assets/hold-jug.png'),
+  load('assets/hold-ledge.png'),
+  load('assets/hold-flake.png'),
+  load('assets/hold-pocket.png'),
+];
+
+/** Stable per-hold sprite pick (so a given hold always uses the same rock). */
+export function holdSpriteFor(x: number, y: number): Sprite {
+  const i = Math.abs(Math.round(x * 13.37 + y * 7.91)) % holdSprites.length;
+  return holdSprites[i];
 }
