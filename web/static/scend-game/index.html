@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>SCEND — one button, ten minutes, maximum speed</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #05040a;
+        overflow: hidden;
+        /* One button only — stop the browser hijacking Space/touch with scroll,
+           selection, or gesture handling. */
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: none;
+        overscroll-behavior: none;
+        cursor: pointer;
+        font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      }
+      #game {
+        display: block;
+      }
+    </style>
+    <script type="module" crossorigin src="./assets/index-BVM-55ou.js"></script>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+  </body>
+</html>

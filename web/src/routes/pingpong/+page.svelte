@@ -1,7 +1,1 @@
-<script>
-	import Window from '$lib/Window.svelte';
-</script>
-
-<Window title="Ping Pong Tracker">
-	<div>There's nothing here yet!</div>
-</Window>
+<!-- This route always redirects to the desktop (see +page.ts) -->

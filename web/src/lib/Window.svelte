@@ -1,18 +1,55 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import DragController from './DragController.svelte';
 	import Repositionable from './Repositionable.svelte';
-	import { createEventDispatcher } from 'svelte';
+	import AboutDialog from './AboutDialog.svelte';
+	import type { ProjectDef } from './projects';
+	import {
+		closeWindow,
+		focusWindow,
+		focusedId,
+		minimizeWindow,
+		toggleMaximize,
+		type OpenWindow
+	} from './windowManager';
 
-	export let title: string;
-	export let initialWidth: number = 400;
-	export let initialHeight: number = 300;
-	export let initialX: number = 100;
-	export let initialY: number = 100;
+	export let def: ProjectDef;
+	export let win: OpenWindow;
 
-	let window: HTMLElement;
+	let windowEl: HTMLElement;
 	let draggable: Repositionable;
-	let minimized = false;
-	// Track resizing state
+	let showAbout = false;
+	let isMobile = false;
+
+	// On small screens windows are always maximized (mobile-app style)
+	$: maximized = win.maximized || isMobile;
+	$: focused = $focusedId === win.id;
+
+	const MIN_WIDTH = 150;
+	const MIN_HEIGHT = 100;
+
+	// Clamp initial geometry so windows never open larger than the viewport (desktop too)
+	let initialW = def.defaultWidth;
+	let initialH = def.defaultHeight;
+	let initialX = def.defaultX;
+	let initialY = def.defaultY;
+
+	onMount(() => {
+		const mql = window.matchMedia('(max-width: 768px)');
+		isMobile = mql.matches;
+		const onChange = (e: MediaQueryListEvent) => (isMobile = e.matches);
+		mql.addEventListener('change', onChange);
+		return () => mql.removeEventListener('change', onChange);
+	});
+
+	if (typeof window !== 'undefined') {
+		initialW = Math.min(initialW, window.innerWidth - 20);
+		initialH = Math.min(initialH, window.innerHeight - 80);
+		initialX = Math.max(0, Math.min(initialX, window.innerWidth - initialW - 10));
+		initialY = Math.max(0, Math.min(initialY, window.innerHeight - initialH - 50));
+	}
+
+	// Resizing state (corner handles)
 	let resizing = false;
 	let startX = 0;
 	let startY = 0;
@@ -20,37 +57,24 @@
 	let startHeight = 0;
 	let startLeft = 0;
 	let startTop = 0;
-	let draggableEl: HTMLElement | null = null;
-	let resizeDir: string | null = null; // e.g. 'e', 's', 'se', 'w', 'n', 'nw', 'ne', 'sw'
+	let resizeDir: string | null = null; // 'se' | 'ne' | 'nw' | 'sw'
 
-	const MIN_WIDTH = 150;
-	const MIN_HEIGHT = 100;
-	const dispatch = createEventDispatcher();
-
-	function minimize(element: HTMLElement) {
-		minimized = !minimized;
-	}
-
-	function onResizeMouseDown(e: MouseEvent, dir: string) {
-		if (minimized) return;
+	function onResizePointerDown(e: PointerEvent, dir: string) {
+		if (maximized) return;
 		resizing = true;
 		resizeDir = dir;
 		startX = e.clientX;
 		startY = e.clientY;
-		startWidth = window.offsetWidth;
-		startHeight = window.offsetHeight;
-		draggableEl = (window as any).parentElement; // .draggable wrapper
-		if (draggableEl) {
-			startLeft = draggableEl.offsetLeft;
-			startTop = draggableEl.offsetTop;
-		}
-		document.addEventListener('mousemove', onResizeMouseMove);
-		document.addEventListener('mouseup', onResizeMouseUp, { once: true });
-		// Prevent selecting text while resizing
+		startWidth = windowEl.offsetWidth;
+		startHeight = windowEl.offsetHeight;
+		const pos = draggable.getWindowPosition();
+		startLeft = pos.x;
+		startTop = pos.y;
+		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 		e.preventDefault();
 	}
 
-	function onResizeMouseMove(e: MouseEvent) {
+	function onResizePointerMove(e: PointerEvent) {
 		if (!resizing || !resizeDir) return;
 		const dx = e.clientX - startX;
 		const dy = e.clientY - startY;
@@ -63,84 +87,114 @@
 		} else if (resizeDir === 'ne') {
 			newWidth = Math.max(MIN_WIDTH, startWidth + dx);
 			newHeight = Math.max(MIN_HEIGHT, startHeight - dy);
-			if (draggableEl && newHeight > MIN_HEIGHT) draggableEl.style.top = startTop + dy + 'px';
+			if (newHeight > MIN_HEIGHT) draggable.updateWindowPosition(startLeft, startTop + dy);
 		} else if (resizeDir === 'sw') {
 			newWidth = Math.max(MIN_WIDTH, startWidth - dx);
-			if (draggableEl && newWidth > MIN_WIDTH) draggableEl.style.left = startLeft + dx + 'px';
 			newHeight = Math.max(MIN_HEIGHT, startHeight + dy);
+			if (newWidth > MIN_WIDTH) draggable.updateWindowPosition(startLeft + dx, startTop);
 		} else if (resizeDir === 'nw') {
 			newWidth = Math.max(MIN_WIDTH, startWidth - dx);
-			if (draggableEl && newWidth > MIN_WIDTH) draggableEl.style.left = startLeft + dx + 'px';
 			newHeight = Math.max(MIN_HEIGHT, startHeight - dy);
-			if (draggableEl && newHeight > MIN_HEIGHT) draggableEl.style.top = startTop + dy + 'px';
+			draggable.updateWindowPosition(
+				newWidth > MIN_WIDTH ? startLeft + dx : startLeft,
+				newHeight > MIN_HEIGHT ? startTop + dy : startTop
+			);
 		}
 
-		window.style.width = newWidth + 'px';
-		window.style.height = newHeight + 'px';
-		dispatch('resize', { width: newWidth, height: newHeight });
+		windowEl.style.width = newWidth + 'px';
+		windowEl.style.height = newHeight + 'px';
 	}
 
-	function onResizeMouseUp() {
+	function onResizePointerUp() {
 		resizing = false;
 		resizeDir = null;
-		document.removeEventListener('mousemove', onResizeMouseMove);
-		dispatch('resizeend', {
-			width: window.offsetWidth,
-			height: window.offsetHeight
-		});
 	}
 </script>
 
-<Repositionable bind:this={draggable} initialPosition={{ x: initialX + 'px', y: initialY + 'px' }}>
+<Repositionable
+	bind:this={draggable}
+	initialPosition={{ x: initialX + 'px', y: initialY + 'px' }}
+	z={win.z}
+	{maximized}
+	hidden={win.minimized}
+>
 	<div
 		class="window"
-		bind:this={window}
-		style={`width:${initialWidth}px;height:${initialHeight}px;`}
+		class:maximized
+		bind:this={windowEl}
+		style={`width:${initialW}px;height:${initialH}px;`}
+		on:pointerdown={() => focusWindow(win.id)}
 	>
-		<DragController {draggable}>
-			<div class="title-bar">
-				<div class="title-bar-text">{title}</div>
+		<DragController {draggable} disabled={maximized}>
+			<div class="title-bar" class:inactive={!focused}>
+				<div class="title-bar-text">{def.title}</div>
 				<div class="title-bar-controls">
-					<button aria-label="Minimize" on:click={(e) => (minimized = true)}></button>
-					<button aria-label="Maximize" on:click={(e) => (minimized = false)}></button>
-					<button aria-label="Close" on:click={(e) => window.parentNode?.removeChild(window)}
-					></button>
+					<button aria-label="Minimize" on:click={() => minimizeWindow(win.id)}></button>
+					{#if win.maximized}
+						<button aria-label="Restore" on:click={() => toggleMaximize(win.id)}></button>
+					{:else}
+						<button aria-label="Maximize" on:click={() => toggleMaximize(win.id)}></button>
+					{/if}
+					<button aria-label="Help" on:click={() => (showAbout = true)}></button>
+					<button aria-label="Close" on:click={() => closeWindow(win.id)}></button>
 				</div>
 			</div>
 		</DragController>
-		<div class="window-body" class:minimized>
+		<div class="window-body">
 			<slot>
 				<p>There's so much room for activities!</p>
 			</slot>
 		</div>
-		<!-- Resize handles -->
-		<!-- Resize handles with ARIA roles for accessibility -->
-		<!-- svelte-ignore a11y-no-static-element-interactions -->
-		<div
-			class="resize-handle handle-se"
-			aria-hidden="true"
-			on:mousedown={(e) => onResizeMouseDown(e, 'se')}
-		></div>
-		<!-- svelte-ignore a11y-no-static-element-interactions -->
-		<div
-			class="resize-handle handle-ne"
-			aria-hidden="true"
-			on:mousedown={(e) => onResizeMouseDown(e, 'ne')}
-		></div>
-		<!-- svelte-ignore a11y-no-static-element-interactions -->
-		<div
-			class="resize-handle handle-nw"
-			aria-hidden="true"
-			on:mousedown={(e) => onResizeMouseDown(e, 'nw')}
-		></div>
-		<!-- svelte-ignore a11y-no-static-element-interactions -->
-		<div
-			class="resize-handle handle-sw"
-			aria-hidden="true"
-			on:mousedown={(e) => onResizeMouseDown(e, 'sw')}
-		></div>
+		{#if !maximized}
+			<!-- Corner resize handles -->
+			<!-- svelte-ignore a11y-no-static-element-interactions -->
+			<div
+				class="resize-handle handle-se"
+				aria-hidden="true"
+				on:pointerdown={(e) => onResizePointerDown(e, 'se')}
+				on:pointermove={onResizePointerMove}
+				on:pointerup={onResizePointerUp}
+				on:pointercancel={onResizePointerUp}
+			></div>
+			<!-- svelte-ignore a11y-no-static-element-interactions -->
+			<div
+				class="resize-handle handle-ne"
+				aria-hidden="true"
+				on:pointerdown={(e) => onResizePointerDown(e, 'ne')}
+				on:pointermove={onResizePointerMove}
+				on:pointerup={onResizePointerUp}
+				on:pointercancel={onResizePointerUp}
+			></div>
+			<!-- svelte-ignore a11y-no-static-element-interactions -->
+			<div
+				class="resize-handle handle-nw"
+				aria-hidden="true"
+				on:pointerdown={(e) => onResizePointerDown(e, 'nw')}
+				on:pointermove={onResizePointerMove}
+				on:pointerup={onResizePointerUp}
+				on:pointercancel={onResizePointerUp}
+			></div>
+			<!-- svelte-ignore a11y-no-static-element-interactions -->
+			<div
+				class="resize-handle handle-sw"
+				aria-hidden="true"
+				on:pointerdown={(e) => onResizePointerDown(e, 'sw')}
+				on:pointermove={onResizePointerMove}
+				on:pointerup={onResizePointerUp}
+				on:pointercancel={onResizePointerUp}
+			></div>
+		{/if}
 	</div>
 </Repositionable>
+
+{#if showAbout}
+	<AboutDialog
+		title={def.title}
+		description={def.description}
+		icon={def.icon}
+		on:close={() => (showAbout = false)}
+	/>
+{/if}
 
 <style>
 	.window {
@@ -148,6 +202,12 @@
 		flex-direction: column;
 		position: relative;
 		box-sizing: border-box;
+	}
+
+	/* !important beats the inline width/height, so un-maximizing restores the old size */
+	.window.maximized {
+		width: 100vw !important;
+		height: calc(100vh - var(--taskbar-h, 30px)) !important;
 	}
 
 	.window-body {
@@ -163,47 +223,31 @@
 		max-height: 100%;
 	}
 
-	.minimized {
-		height: auto;
-	}
-
 	/* Resize handles */
 	.resize-handle {
 		position: absolute;
 		z-index: 5;
-		width: 10px;
-		height: 10px;
-		/* background: rgba(0,0,0,0.15); */
-		/* border: 1px solid rgba(255,255,255,0.6); */
-		/* box-shadow: inset 0 0 2px rgba(0,0,0,0.4); */
-		cursor: nwse-resize;
-		border-radius: 2px;
-	}
-	/* Corner positions (single definition each) */
-	.handle-se {
 		width: 12px;
 		height: 12px;
+		border-radius: 2px;
+		touch-action: none;
+	}
+	.handle-se {
 		bottom: 0;
 		right: 0;
 		cursor: nwse-resize;
 	}
 	.handle-sw {
-		width: 12px;
-		height: 12px;
 		bottom: 0;
 		left: 0;
 		cursor: nesw-resize;
 	}
 	.handle-ne {
-		width: 12px;
-		height: 12px;
 		top: 0;
 		right: 0;
 		cursor: nesw-resize;
 	}
 	.handle-nw {
-		width: 12px;
-		height: 12px;
 		top: 0;
 		left: 0;
 		cursor: nwse-resize;

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount, afterUpdate } from 'svelte';
-	import Window from '$lib/Window.svelte';
 
 	/** Public props **/
 	export let name = 'michaël.com';
@@ -47,12 +46,12 @@
 	});
 </script>
 
-<Window title="Logo" initialWidth={900} initialHeight={520} initialX={120} initialY={120}>
+<div class="logo-page">
 	<div class="vapor-scene">
 		<div class="vapor-text" bind:this={textEl}>{name}</div>
 		<div class="vapor-grid" aria-hidden="true"></div>
 	</div>
-</Window>
+</div>
 
 <style>
 	/*
@@ -60,9 +59,18 @@
    * --vapor-bg1, --vapor-bg2, --vapor-magenta, --vapor-cyan, --vapor-sun
    */
 
+	.logo-page {
+		position: fixed;
+		inset: 0;
+		display: grid;
+		place-items: center;
+		background: #0a0716;
+		padding: 16px;
+	}
+
 	.vapor-scene {
 		position: relative;
-		width: 100%;
+		width: min(100%, 960px);
 		aspect-ratio: 16/9; /* Parent controls width; height follows */
 		border-radius: 24px;
 		overflow: hidden;
