@@ -1,0 +1,168 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="192" viewBox="0 0 320 192" shape-rendering="crispEdges">
+  <rect x="0" y="0" width="320" height="192" fill="#0b0a14"/>
+  <rect x="0" y="0" width="64" height="64" fill="#1b3a2e" fill-opacity="0.55"/>
+  <g stroke="#ffffff" stroke-opacity="0.07" stroke-width="1">
+    <line x1="32" y1="0" x2="32" y2="64"/>
+    <line x1="0" y1="32" x2="64" y2="32"/>
+  </g>
+  <circle cx="32" cy="32" r="2" fill="#ffffff" fill-opacity="0.18"/>
+  <rect x="0.5" y="0.5" width="63" height="63" fill="none" stroke="#00f0ff" stroke-opacity="0.55" stroke-width="1"/>
+  <rect x="2" y="2" width="60" height="13" fill="#000000" fill-opacity="0.6"/>
+  <text x="4" y="12" font-family="monospace" font-size="8" font-weight="bold" fill="#7CFCC0">surf-left</text>
+  <rect x="2" y="51" width="60" height="11" fill="#000000" fill-opacity="0.6"/>
+  <text x="4" y="60" font-family="monospace" font-size="7" fill="#9fb3c8">0,0 64px</text>
+  <rect x="64" y="0" width="64" height="64" fill="#1b3a2e" fill-opacity="0.55"/>
+  <g stroke="#ffffff" stroke-opacity="0.07" stroke-width="1">
+    <line x1="96" y1="0" x2="96" y2="64"/>
+    <line x1="64" y1="32" x2="128" y2="32"/>
+  </g>
+  <circle cx="96" cy="32" r="2" fill="#ffffff" fill-opacity="0.18"/>
+  <rect x="64.5" y="0.5" width="63" height="63" fill="none" stroke="#00f0ff" stroke-opacity="0.55" stroke-width="1"/>
+  <rect x="66" y="2" width="60" height="13" fill="#000000" fill-opacity="0.6"/>
+  <text x="68" y="12" font-family="monospace" font-size="8" font-weight="bold" fill="#7CFCC0">surf-mid</text>
+  <rect x="66" y="51" width="60" height="11" fill="#000000" fill-opacity="0.6"/>
+  <text x="68" y="60" font-family="monospace" font-size="7" fill="#9fb3c8">64,0 64px</text>
+  <rect x="128" y="0" width="64" height="64" fill="#1b3a2e" fill-opacity="0.55"/>
+  <g stroke="#ffffff" stroke-opacity="0.07" stroke-width="1">
+    <line x1="160" y1="0" x2="160" y2="64"/>
+    <line x1="128" y1="32" x2="192" y2="32"/>
+  </g>
+  <circle cx="160" cy="32" r="2" fill="#ffffff" fill-opacity="0.18"/>
+  <rect x="128.5" y="0.5" width="63" height="63" fill="none" stroke="#00f0ff" stroke-opacity="0.55" stroke-width="1"/>
+  <rect x="130" y="2" width="60" height="13" fill="#000000" fill-opacity="0.6"/>
+  <text x="132" y="12" font-family="monospace" font-size="8" font-weight="bold" fill="#7CFCC0">surf-right</text>
+  <rect x="130" y="51" width="60" height="11" fill="#000000" fill-opacity="0.6"/>
+  <text x="132" y="60" font-family="monospace" font-size="7" fill="#9fb3c8">128,0 64px</text>
+  <rect x="192" y="0" width="64" height="64" fill="#1b3a2e" fill-opacity="0.55"/>
+  <g stroke="#ffffff" stroke-opacity="0.07" stroke-width="1">
+    <line x1="224" y1="0" x2="224" y2="64"/>
+    <line x1="192" y1="32" x2="256" y2="32"/>
+  </g>
+  <circle cx="224" cy="32" r="2" fill="#ffffff" fill-opacity="0.18"/>
+  <rect x="192.5" y="0.5" width="63" height="63" fill="none" stroke="#00f0ff" stroke-opacity="0.55" stroke-width="1"/>
+  <rect x="194" y="2" width="60" height="13" fill="#000000" fill-opacity="0.6"/>
+  <text x="196" y="12" font-family="monospace" font-size="8" font-weight="bold" fill="#7CFCC0">surf-single</text>
+  <rect x="194" y="51" width="60" height="11" fill="#000000" fill-opacity="0.6"/>
+  <text x="196" y="60" font-family="monospace" font-size="7" fill="#9fb3c8">192,0 64px</text>
+  <rect x="256" y="0" width="64" height="64" fill="#234a3a" fill-opacity="0.55"/>
+  <g stroke="#ffffff" stroke-opacity="0.07" stroke-width="1">
+    <line x1="288" y1="0" x2="288" y2="64"/>
+    <line x1="256" y1="32" x2="320" y2="32"/>
+  </g>
+  <circle cx="288" cy="32" r="2" fill="#ffffff" fill-opacity="0.18"/>
+  <rect x="256.5" y="0.5" width="63" height="63" fill="none" stroke="#00f0ff" stroke-opacity="0.55" stroke-width="1"/>
+  <rect x="258" y="2" width="60" height="13" fill="#000000" fill-opacity="0.6"/>
+  <text x="260" y="12" font-family="monospace" font-size="8" font-weight="bold" fill="#7CFCC0">surf-mid-alt</text>
+  <rect x="258" y="51" width="60" height="11" fill="#000000" fill-opacity="0.6"/>
+  <text x="260" y="60" font-family="monospace" font-size="7" fill="#9fb3c8">256,0 64px</text>
+  <rect x="0" y="64" width="64" height="64" fill="#2a1d3a" fill-opacity="0.55"/>
+  <g stroke="#ffffff" stroke-opacity="0.07" stroke-width="1">
+    <line x1="32" y1="64" x2="32" y2="128"/>
+    <line x1="0" y1="96" x2="64" y2="96"/>
+  </g>
+  <circle cx="32" cy="96" r="2" fill="#ffffff" fill-opacity="0.18"/>
+  <rect x="0.5" y="64.5" width="63" height="63" fill="none" stroke="#00f0ff" stroke-opacity="0.55" stroke-width="1"/>
+  <rect x="2" y="66" width="60" height="13" fill="#000000" fill-opacity="0.6"/>
+  <text x="4" y="76" font-family="monospace" font-size="8" font-weight="bold" fill="#7CFCC0">under-left</text>
+  <rect x="2" y="115" width="60" height="11" fill="#000000" fill-opacity="0.6"/>
+  <text x="4" y="124" font-family="monospace" font-size="7" fill="#9fb3c8">0,64 64px</text>
+  <rect x="64" y="64" width="64" height="64" fill="#2a1d3a" fill-opacity="0.55"/>
+  <g stroke="#ffffff" stroke-opacity="0.07" stroke-width="1">
+    <line x1="96" y1="64" x2="96" y2="128"/>
+    <line x1="64" y1="96" x2="128" y2="96"/>
+  </g>
+  <circle cx="96" cy="96" r="2" fill="#ffffff" fill-opacity="0.18"/>
+  <rect x="64.5" y="64.5" width="63" height="63" fill="none" stroke="#00f0ff" stroke-opacity="0.55" stroke-width="1"/>
+  <rect x="66" y="66" width="60" height="13" fill="#000000" fill-opacity="0.6"/>
+  <text x="68" y="76" font-family="monospace" font-size="8" font-weight="bold" fill="#7CFCC0">under-mid</text>
+  <rect x="66" y="115" width="60" height="11" fill="#000000" fill-opacity="0.6"/>
+  <text x="68" y="124" font-family="monospace" font-size="7" fill="#9fb3c8">64,64 64px</text>
+  <rect x="128" y="64" width="64" height="64" fill="#2a1d3a" fill-opacity="0.55"/>
+  <g stroke="#ffffff" stroke-opacity="0.07" stroke-width="1">
+    <line x1="160" y1="64" x2="160" y2="128"/>
+    <line x1="128" y1="96" x2="192" y2="96"/>
+  </g>
+  <circle cx="160" cy="96" r="2" fill="#ffffff" fill-opacity="0.18"/>
+  <rect x="128.5" y="64.5" width="63" height="63" fill="none" stroke="#00f0ff" stroke-opacity="0.55" stroke-width="1"/>
+  <rect x="130" y="66" width="60" height="13" fill="#000000" fill-opacity="0.6"/>
+  <text x="132" y="76" font-family="monospace" font-size="8" font-weight="bold" fill="#7CFCC0">under-right</text>
+  <rect x="130" y="115" width="60" height="11" fill="#000000" fill-opacity="0.6"/>
+  <text x="132" y="124" font-family="monospace" font-size="7" fill="#9fb3c8">128,64 64px</text>
+  <rect x="192" y="64" width="64" height="64" fill="#2a1d3a" fill-opacity="0.55"/>
+  <g stroke="#ffffff" stroke-opacity="0.07" stroke-width="1">
+    <line x1="224" y1="64" x2="224" y2="128"/>
+    <line x1="192" y1="96" x2="256" y2="96"/>
+  </g>
+  <circle cx="224" cy="96" r="2" fill="#ffffff" fill-opacity="0.18"/>
+  <rect x="192.5" y="64.5" width="63" height="63" fill="none" stroke="#00f0ff" stroke-opacity="0.55" stroke-width="1"/>
+  <rect x="194" y="66" width="60" height="13" fill="#000000" fill-opacity="0.6"/>
+  <text x="196" y="76" font-family="monospace" font-size="8" font-weight="bold" fill="#7CFCC0">under-single</text>
+  <rect x="194" y="115" width="60" height="11" fill="#000000" fill-opacity="0.6"/>
+  <text x="196" y="124" font-family="monospace" font-size="7" fill="#9fb3c8">192,64 64px</text>
+  <rect x="256" y="64" width="64" height="64" fill="#341d3a" fill-opacity="0.55"/>
+  <g stroke="#ffffff" stroke-opacity="0.07" stroke-width="1">
+    <line x1="288" y1="64" x2="288" y2="128"/>
+    <line x1="256" y1="96" x2="320" y2="96"/>
+  </g>
+  <circle cx="288" cy="96" r="2" fill="#ffffff" fill-opacity="0.18"/>
+  <rect x="256.5" y="64.5" width="63" height="63" fill="none" stroke="#00f0ff" stroke-opacity="0.55" stroke-width="1"/>
+  <rect x="258" y="66" width="60" height="13" fill="#000000" fill-opacity="0.6"/>
+  <text x="260" y="76" font-family="monospace" font-size="8" font-weight="bold" fill="#7CFCC0">hang-detail</text>
+  <rect x="258" y="115" width="60" height="11" fill="#000000" fill-opacity="0.6"/>
+  <text x="260" y="124" font-family="monospace" font-size="7" fill="#9fb3c8">256,64 64px</text>
+  <rect x="0" y="128" width="64" height="64" fill="#3a1d1d" fill-opacity="0.55"/>
+  <g stroke="#ffffff" stroke-opacity="0.07" stroke-width="1">
+    <line x1="32" y1="128" x2="32" y2="192"/>
+    <line x1="0" y1="160" x2="64" y2="160"/>
+  </g>
+  <circle cx="32" cy="160" r="2" fill="#ffffff" fill-opacity="0.18"/>
+  <rect x="0.5" y="128.5" width="63" height="63" fill="none" stroke="#00f0ff" stroke-opacity="0.55" stroke-width="1"/>
+  <rect x="2" y="130" width="60" height="13" fill="#000000" fill-opacity="0.6"/>
+  <text x="4" y="140" font-family="monospace" font-size="8" font-weight="bold" fill="#7CFCC0">spike</text>
+  <rect x="2" y="179" width="60" height="11" fill="#000000" fill-opacity="0.6"/>
+  <text x="4" y="188" font-family="monospace" font-size="7" fill="#9fb3c8">0,128 64px</text>
+  <rect x="64" y="128" width="64" height="64" fill="#3a2a1d" fill-opacity="0.55"/>
+  <g stroke="#ffffff" stroke-opacity="0.07" stroke-width="1">
+    <line x1="96" y1="128" x2="96" y2="192"/>
+    <line x1="64" y1="160" x2="128" y2="160"/>
+  </g>
+  <circle cx="96" cy="160" r="2" fill="#ffffff" fill-opacity="0.18"/>
+  <rect x="64.5" y="128.5" width="63" height="63" fill="none" stroke="#00f0ff" stroke-opacity="0.55" stroke-width="1"/>
+  <rect x="66" y="130" width="60" height="13" fill="#000000" fill-opacity="0.6"/>
+  <text x="68" y="140" font-family="monospace" font-size="8" font-weight="bold" fill="#7CFCC0">lava-top</text>
+  <rect x="66" y="179" width="60" height="11" fill="#000000" fill-opacity="0.6"/>
+  <text x="68" y="188" font-family="monospace" font-size="7" fill="#9fb3c8">64,128 64px</text>
+  <rect x="128" y="128" width="64" height="64" fill="#1d2a3a" fill-opacity="0.55"/>
+  <g stroke="#ffffff" stroke-opacity="0.07" stroke-width="1">
+    <line x1="160" y1="128" x2="160" y2="192"/>
+    <line x1="128" y1="160" x2="192" y2="160"/>
+  </g>
+  <circle cx="160" cy="160" r="2" fill="#ffffff" fill-opacity="0.18"/>
+  <rect x="128.5" y="128.5" width="63" height="63" fill="none" stroke="#00f0ff" stroke-opacity="0.55" stroke-width="1"/>
+  <rect x="130" y="130" width="60" height="13" fill="#000000" fill-opacity="0.6"/>
+  <text x="132" y="140" font-family="monospace" font-size="8" font-weight="bold" fill="#7CFCC0">geyser-vent</text>
+  <rect x="130" y="179" width="60" height="11" fill="#000000" fill-opacity="0.6"/>
+  <text x="132" y="188" font-family="monospace" font-size="7" fill="#9fb3c8">128,128 64px</text>
+  <rect x="192" y="128" width="64" height="64" fill="#2d2d1d" fill-opacity="0.55"/>
+  <g stroke="#ffffff" stroke-opacity="0.07" stroke-width="1">
+    <line x1="224" y1="128" x2="224" y2="192"/>
+    <line x1="192" y1="160" x2="256" y2="160"/>
+  </g>
+  <circle cx="224" cy="160" r="2" fill="#ffffff" fill-opacity="0.18"/>
+  <rect x="192.5" y="128.5" width="63" height="63" fill="none" stroke="#00f0ff" stroke-opacity="0.55" stroke-width="1"/>
+  <rect x="194" y="130" width="60" height="13" fill="#000000" fill-opacity="0.6"/>
+  <text x="196" y="140" font-family="monospace" font-size="8" font-weight="bold" fill="#7CFCC0">corner</text>
+  <rect x="194" y="179" width="60" height="11" fill="#000000" fill-opacity="0.6"/>
+  <text x="196" y="188" font-family="monospace" font-size="7" fill="#9fb3c8">192,128 64px</text>
+  <rect x="256" y="128" width="64" height="64" fill="#1d3a3a" fill-opacity="0.55"/>
+  <g stroke="#ffffff" stroke-opacity="0.07" stroke-width="1">
+    <line x1="288" y1="128" x2="288" y2="192"/>
+    <line x1="256" y1="160" x2="320" y2="160"/>
+  </g>
+  <circle cx="288" cy="160" r="2" fill="#ffffff" fill-opacity="0.18"/>
+  <rect x="256.5" y="128.5" width="63" height="63" fill="none" stroke="#00f0ff" stroke-opacity="0.55" stroke-width="1"/>
+  <rect x="258" y="130" width="60" height="13" fill="#000000" fill-opacity="0.6"/>
+  <text x="260" y="140" font-family="monospace" font-size="8" font-weight="bold" fill="#7CFCC0">accent</text>
+  <rect x="258" y="179" width="60" height="11" fill="#000000" fill-opacity="0.6"/>
+  <text x="260" y="188" font-family="monospace" font-size="7" fill="#9fb3c8">256,128 64px</text>
+</svg>

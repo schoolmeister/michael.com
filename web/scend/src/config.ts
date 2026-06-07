@@ -10,14 +10,27 @@
  * Edit a number, save, refresh — that's the whole feel loop.
  */
 
-// ── World grid + the three floors ─────────────────────────────────────────────
+// ── World grid + INFINITE floors (lanes) ──────────────────────────────────────
 export const TILE = 44;
-export const GROUND_FRAC = 0.86; // the LOWEST lane sits this far down the viewport
-export const FALL_DEATH_MARGIN = 110; // px below the viewport before a fall is fatal
-/** The three floor heights, in tiles above the baseline. Spacing ≥ 2.5 so floors read as
- *  clearly distinct (no "is that 1 tile or 2?" ambiguity) and a single jump climbs exactly
- *  one floor. */
-export const LANE_H = [0, 2.6, 5.2];
+export const FALL_DEATH_MARGIN = 120; // px below the view before a fall is fatal
+/** Floors are now INFINITE: any integer lane. Lane n's surface world-y = -n * LANE_GAP
+ *  (higher lane index = higher up). Spacing ≥ 2.5 tiles so a single jump climbs exactly one
+ *  floor and floors read as clearly distinct. */
+export const LANE_SPACING = 2.6; // tiles between adjacent floors
+export const LANE_GAP = LANE_SPACING * TILE; // px between adjacent floors
+
+/** Vertical camera — DEAD-ZONE + ASYMMETRIC DAMPING (anti-nausea). The camera holds still on
+ *  Y while the player stays inside the central dead band; it only pans when the player pushes
+ *  past the top/bottom thresholds, and even then it eases (slow up, snappier down).
+ *  VERT_ANCHOR is just where the start floor sits initially. */
+// The game climbs UP/sideways, so the player sits near the BOTTOM — most of the screen is
+// above them, showing the higher floors they're heading for. The camera holds still while the
+// player stays in the central dead band; outside it, it eases back to the bottom anchor.
+export const VERT_ANCHOR = 0.72; // player's resting screen fraction (near the bottom)
+export const CAM_DEAD_TOP = 0.4; // rise above this → camera pans up to re-anchor
+export const CAM_DEAD_BOT = 0.88; // drop below this → camera pans down
+export const CAM_UP_LERP = 5; // upward follow (climbing is the main direction now)
+export const CAM_DOWN_LERP = 9; // snappy downward catch-up
 
 export const PLAYER_ANCHOR_X = 0.3;
 export const PLAYER_W = 28;
@@ -27,30 +40,49 @@ export const PLAYER_H = 36;
 export const LAND_LEEWAY_X = 12; // px of horizontal overhang that still counts as "on it"
 export const LAND_LEEWAY_Y = 8; // px the feet may be past the surface and still snap up
 
-// ── Floor / gap generation ─────────────────────────────────────────────────────
-export const START_RUN = 14; // hazard-free lead-in (columns, all lanes solid)
-export const PLAT_LEN_MIN = 5; // platform run length (columns) per lane
-export const PLAT_LEN_MAX = 12;
-export const GAP_LEN_MIN = 1; // holes are short — they're "drop here", not big leaps
-export const GAP_LEN_MAX = 2;
-export const GAP_PROB = 0.45; // chance a lane opens a hole when its platform run ends
-// Invariant enforced in world.ts: at most ONE lane may be a hole at any column, so from any
-// floor there is always an adjacent solid floor to jump up to or drop down to.
+// ── Path generation (infinite-lane random walk; most knobs live in tunables.ts) ──
+export const START_RUN = 12; // hazard-free lead-in (columns on the start floor)
+export const GAP_LEN_MIN = 1; // floor on gap width (shallow drops need a narrow gap to be fair)
+export const GAP_LEN_MAX = 13; // clamp so the next platform stays on-screen at high speed
+export const MAX_DROP_LANES = 3; // path never drops more than this at once (fall-death bound)
+export const SPIKE_CLUSTER_MAX = 6; // hard cap on adjacent-spike run length
+/** Falling more than this far below the floor you last stood on (with nothing to land on) is
+ *  fatal. Bigger than a legit MAX_DROP_LANES drop so only true voids kill. */
+export const FALL_DEATH_DROP = (MAX_DROP_LANES + 1.3) * LANE_GAP;
+export const GOD_SPEED_STEP = 60; // px/s per O/P press in god mode
+
+/** Camera zooms OUT as you speed up, so you can read what's coming at high speed. */
+
+/** Camera zooms OUT as you speed up, so you can read what's coming at high speed. */
+export const ZOOM_MIN = 0.62; // most zoomed-out (fastest)
+export const ZOOM_START_SPEED = 420; // zoom begins pulling back above this speed
+export const ZOOM_FULL_SPEED = 1150; // fully zoomed out at/above this speed
+export const ZOOM_PIVOT_FRAC = 0.7; // zoom pivots near the player (bottom) — reveals more above
 
 // ── Hazards (tile-based, on platform interiors) ───────────────────────────────
-export const HAZARD_CHANCE_START = 0.08;
-export const HAZARD_CHANCE_END = 0.26;
-export const HAZARD_WEIGHTS = { spike: 3, lava: 2, water: 3, geyser: 1.5 } as const;
+export const HAZARD_CHANCE_START = 0.22; // spikes from the very start (not just late game)
+export const HAZARD_CHANCE_END = 0.4;
+export const HAZARD_WEIGHTS = { spike: 3, lava: 2, geyser: 1.5 } as const;
 export const HAZARD_SPACER = 3; // min solid tiles between hazards on a lane
 
-// ── Pickups — adaptive: rare on YOUR floor, common on the others & near obstacles ──
-export const PICKUP_BASE = 0.1; // base per-tile pickup chance on a lane
-export const PLAYER_LANE_GOOD_MULT = 0.2; // ×chance on the floor the player is currently on
-export const OBSTACLE_REWARD_CHANCE = 0.7; // chance a hazard is "guarding" a nearby pickup
+/** Monster tiers unlock by SPEED, not time — the faster you get, the deadlier the world.
+ *  Tier 1 (start): only spikes + water (water is the harmless boost-setup). Tier 2: lava +
+ *  geysers join. Tier 3: ghosts (the bullet hell) appear. */
+export const GEYSER_UNLOCK_SPEED = 480; // lava + geysers turn on at/above this speed
+export const GHOST_UNLOCK_SPEED = 660; // ghosts turn on at/above this speed
+
+// ── Pickups — speed (>>) buffs drop ~1.5× more often (but each is weaker, see bootsBoost) ──
+export const PICKUP_BASE = 0.12; // base per-tile pickup chance on a lane (↑ ~1.5×)
+export const PLAYER_LANE_GOOD_MULT = 0.25; // ×chance on the floor the player is currently on
+export const OBSTACLE_REWARD_CHANCE = 0.3; // chance a hazard is "guarding" a nearby pickup
 export const PICKUP_AFTER_OBSTACLE = 2; // tiles after an obstacle the guarded pickup sits
-export const PICKUP_SPACER = 3;
+export const PICKUP_SPACER = 4; // ↓ pickups come ~1.5× more often
 export const PICKUP_VIS_FLOAT = 0.5; // tiles above the floor a pickup hovers (grabbed at run height)
-export const PICKUP_WEIGHTS = { boots: 2, knife: 1, horns: 1 } as const;
+/** Early pool is just boots (>> speed). knife joins once geysers unlock; the "new" boosts
+ *  (kick/stomp) only join later, once ghosts unlock. (Magnet is now a permanent default.) */
+export const PICKUP_WEIGHTS_BASE = { boots: 1.3 } as const;
+export const PICKUP_KNIFE_WEIGHT = 0.8; // added once speed ≥ GEYSER_UNLOCK_SPEED
+export const PICKUP_LATE_WEIGHTS = { boot: 0.7, stomp: 0.7 } as const; // added once ghosts unlock
 
 // ── Geyser (now JUMPABLE — clear the steam with a normal hop) ──────────────────
 export const GEYSER_PERIOD = 2.0;
@@ -66,15 +98,34 @@ export const GHOST_PATROL = 1.8;
 export const GHOST_SPEED = 80;
 export const GHOST_FIRE_START = 1.9;
 export const GHOST_FIRE_END = 0.75;
-export const GHOST_KILL_BOOST = 60; // permanent +px/s for stomping a ghost
+export const GHOST_BOUNCE_V = 720; // upward bounce off a ghost — LESS than a full jump (JUMP_V)
 export const BOO_SPEED = 230;
 export const BOO_SPEED_RAMP = 160;
 export const BOO_SPREAD = 28;
 export const BOO_COUNT_MAX = 3;
 
-// ── Knife ─────────────────────────────────────────────────────────────────────
-export const KNIFE_SPEED = 760;
-export const KNIFE_RANGE = 540;
+// ── Knife (held weapon: auto-throws on a timer, kills the obstacle in front) ───
+export const KNIFE_SPEED = 820;
+export const KNIFE_RANGE = 680;
+export const KNIFE_PERIOD = 3; // seconds between auto-throws
+
+// ── New enemies ────────────────────────────────────────────────────────────────
+export const HOBGOBLIN_UNLOCK_SPEED = 520; // big 2×2 walker — evade by switching floors
+export const HOBGOBLIN_SPEED = 55; // px/s patrol
+export const HOBGOBLIN_CHANCE = 0.16; // per eligible wide platform
+export const BOULDER_UNLOCK_SPEED = 600; // rolls right→left at you
+export const BOULDER_SPEED = 320; // px/s leftward roll (relative to world)
+export const BOULDER_PERIOD = 3.2; // s between boulder spawns (once unlocked)
+
+// ── Kick (BOOT pickup) + STOMP ─────────────────────────────────────────────────
+export const KICK_VX = 520; // forward velocity given to a kicked enemy
+export const KICK_VY = -260; // slight upward pop on a kick
+export const KICK_CHAIN_R = 0.7; // tiles: a flying kicked enemy knocks others within this
+export const STOMP_RADIUS = 2; // tiles: on landing, obstacles within this get launched
+export const STOMP_LAUNCH_V = -640; // upward velocity given to stomped enemies
+
+// ── Magnet boots (mid-air Space = instant dive straight down) ─────────────────
+export const MAGNET_DIVE_V = 1500;
 
 // ── Speed: PERMANENT stacking boost × a steeper time ramp (FASTER overall) ─────
 export const BASE_SPEED = 360; // ↑ was 280 — quicker out of the gate
@@ -108,28 +159,36 @@ export const SHAKE_DECAY = 38;
 export const SPEEDLINE_MIN_SPEED = 420;
 export const SPEEDLINE_MAX = 28;
 
-// ── Palette ──────────────────────────────────────────────────────────────────
+// ── Palette — dark, bloody RED. The background DEPTH-shades: deeper down = darker,
+//    higher up = lighter (see BG_DEEP → BG_HIGH, blended by the player's floor). ──────
+export const BG_DEEP = [10, 2, 4] as const; // RGB at deep depth (near-black blood)
+export const BG_HIGH = [92, 16, 24] as const; // RGB high up (lighter blood red)
+export const BG_LANE_RANGE = 14; // lanes from deepest→lightest across the gradient
+
 export const PALETTE = {
-  bg0: '#050410',
-  bg1: '#0a0622',
-  bgFar: '#150a3a',
-  bgNear: '#241057',
-  grid: '#2a1566',
-  ground: '#160f33',
-  laneEdge: ['#00f0ff', '#39d0ff', '#7da8ff'], // per-floor neon top edge (low→high)
-  player: '#00f6ff',
+  grid: '#3a0c14', // dark-red floor guide lines
+  ground: '#1c0a10', // fallback slab fill (when a tile image isn't loaded)
+  bgFar: '#2a060c', // far parallax silhouettes
+  bgNear: '#48101c', // near parallax silhouettes
+  laneEdge: ['#ff5a4a', '#ff8a5a', '#ffb27a'], // floor top-edge accents (cycled by lane)
+  player: '#00f6ff', // cyan — pops against the red
   playerWet: '#56b3ff',
-  spike: '#ff1f6b',
+  spike: '#ff2d4a',
   lava: '#ff6a1a',
   water: '#19d2ff',
-  geyser: '#ddf7ff',
+  geyser: '#ffe4d0',
   ghost: '#c190ff',
   boo: '#ff3df0',
   knife: '#fff95e',
   boost: '#5dff9b',
   horns: '#ff9b3d',
-  text: '#eef0ff',
-  textDim: '#7d77b8',
+  magnet: '#8ad8ff',
+  hobgoblin: '#7bd24a', // sickly green ogre
+  boulder: '#b08050', // rolling stone
+  boot: '#ff7b3d', // kick charge
+  stomp: '#ffd23d', // stomp charge
+  text: '#ffe9ec',
+  textDim: '#b0707a',
   win: '#5dff9b',
-  dead: '#ff1f6b'
+  dead: '#ff2d4a'
 } as const;

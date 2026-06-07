@@ -12,8 +12,15 @@ import { platformAt } from './src/world';
 const VW = 760,
   VH = 520;
 
+// the game now opens on a character-select screen; skip straight into a run for the harness
+function newGame(seed: number) {
+  const s = createGame(seed, VW, VH);
+  s.phase = 'running';
+  return s;
+}
+
 function run(label: string, jumpEvery: number): void {
-  const s = createGame(12345, VW, VH);
+  const s = newGame(12345);
   let frames = 0;
   let jumpTimer = 0;
   let deaths = 0;
@@ -44,7 +51,7 @@ function run(label: string, jumpEvery: number): void {
     if (s.phase === 'dead') {
       deaths++;
       // emulate the player retrying immediately
-      Object.assign(s, createGame(12345 + deaths, VW, VH));
+      Object.assign(s, newGame(12345 + deaths));
     }
   }
 
@@ -74,18 +81,27 @@ run('steady-hops (jump ~3x/sec)', 0.33);
   let won = false;
   const LA = Math.round(C.PLAYER_W); // small lookahead in px
   for (let attempt = 0; attempt < 40 && !won; attempt++) {
-    const s = createGame(7000 + attempt, VW, VH);
+    const s = newGame(7000 + attempt);
     while (s.phase === 'running' && s.time < C.WIN_TIME) {
       const p = s.player;
       if (p.onGround) {
-        const here = platformAt(s.world, p.x + LA, p.lane);
-        const holeAhead = !here;
-        const dryHazard = here && (here.p.tiles[here.idx] === 'spike' ||
-          (here.p.tiles[here.idx] === 'lava' && s.time >= p.wetUntil));
-        const aboveSolid = p.lane + 1 < C.LANE_H.length && !!platformAt(s.world, p.x + LA, p.lane + 1);
-        if (dryHazard) requestJump(s);
-        else if (holeAhead && aboveSolid) requestJump(s); // climb to escape the hole
-        // else (hole + nothing above) → don't jump, drop to the floor below
+        const onTile = platformAt(s.world, p.x, p.lane);
+        const nextTile = platformAt(s.world, p.x + C.TILE, p.lane);
+        const nextHaz = nextTile && (nextTile.p.tiles[nextTile.idx] === 'spike' || nextTile.p.tiles[nextTile.idx] === 'lava');
+        if (nextHaz) {
+          requestJump(s); // hop the edge spikes (the gap jump clears them)
+        } else if (onTile && !nextTile) {
+          // edge takeoff. Prefer dropping if a lower floor will catch us (matches path drops);
+          // otherwise jump (cross a flat gap / climb a floor).
+          let canDrop = false;
+          for (let k = 1; k <= C.MAX_DROP_LANES && !canDrop; k++) {
+            const dl = (s.speed * Math.sqrt((2 * k * C.LANE_GAP) / C.GRAVITY)) / C.TILE; // land dist (tiles)
+            for (let dx = Math.max(1, Math.floor(dl - 1)); dx <= Math.ceil(dl + 1) && !canDrop; dx++) {
+              if (platformAt(s.world, p.x + dx * C.TILE, p.lane - k)) canDrop = true;
+            }
+          }
+          if (!canDrop) requestJump(s); // must cross/climb — else run off the edge to drop
+        }
       }
       update(s, dt);
     }
@@ -103,7 +119,7 @@ run('steady-hops (jump ~3x/sec)', 0.33);
 // Direct assertion: a jump from a standing start must produce real lift, even after the
 // player has been grounded a while (the coyote-timer regression).
 (function jumpFromGround() {
-  const s = createGame(99, VW, VH);
+  const s = newGame(99);
   const dt = 1 / 60;
   for (let i = 0; i < 60; i++) update(s, dt); // stand for ~1s
   const yBefore = s.player.y;

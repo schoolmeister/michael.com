@@ -1,17 +1,18 @@
 /**
- * world.ts — THREE-lane streaming generator. Each of the three floors is an independent
- * stream of platform runs broken by short holes — EXCEPT the invariant: at most one lane may
- * be a hole at any column. With three lanes that guarantees ≥2 solid floors everywhere, so
- * from whatever floor you're on there's always an adjacent solid floor to jump up to or drop
- * down to. Falling past the bottom of the screen is still death (sim.ts).
+ * world.ts — INFINITE-lane PATH generator. The world is a single guaranteed-reachable path
+ * that random-walks up/down across an unbounded set of integer lanes, with occasional sparse
+ * BRANCH platforms (the optional risk/reward detours that carry most pickups). Gaps and spike
+ * clusters scale with the player's CURRENT speed so they stay fair-but-tense at any speed (you
+ * can't out-run a pattern by jumping the whole thing, and adjacent spikes are hard when slow).
  *
- * Adaptive placement: the floor the PLAYER is currently on gets far less good stuff; the
- * other floors get more, and pickups cluster around obstacles. So rewards always cost a
- * deliberate lane change.
+ * A platform is `{lane, col0, col1, tiles}`. Lane n's surface world-y = -n * LANE_GAP (sim.ts).
+ * The path only ever climbs +1 lane (a jump) or drops down to MAX_DROP_LANES (a fall), and
+ * gaps are capped to the reachable distance for that move — so there's always a way through.
  */
 
 import * as C from './config';
-import type { Pickup, PickupKind, Platform, TileKind, World } from './state';
+import { TUNE } from './tunables';
+import type { PickupKind, Platform, TileKind, World } from './state';
 
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
@@ -39,158 +40,193 @@ function pickWeighted<K extends string>(r: number, weights: Record<K, number>): 
   return entries[entries.length - 1][0];
 }
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
-const NLANES = C.LANE_H.length;
+const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 
 export function createWorld(seed: number): World {
   return {
     seed,
     platforms: [],
     geysers: [],
-    ghosts: [],
+    enemies: [],
     pickups: [],
     nextCol: 0,
     minCol: 0,
-    present: Array(NLANES).fill(true),
-    runLeft: Array(NLANES).fill(C.START_RUN),
-    open: Array(NLANES).fill(null),
-    hazSpacer: Array(NLANES).fill(0),
-    pickSpacer: Array(NLANES).fill(0),
-    pickPending: Array(NLANES).fill(0),
-    ghostSpacer: Array(NLANES).fill(0),
+    pathLane: 0,
+    patternLeft: 0,
+    pattern: 'none',
+    incomingLand: 0,
+    hazSpacer: 0,
+    ghostSpacer: 0,
     playerLane: 0
   };
 }
 
-function addPickup(w: World, c: number, lane: number, r: () => number): void {
-  const p: Pickup = {
-    x: c * C.TILE + C.TILE / 2,
+/** Horizontal reach of one jump, in tiles, at this speed. */
+function jumpReach(speed: number): number {
+  const air = (2 * TUNE.jumpV) / TUNE.gravity;
+  return (speed * air) / C.TILE;
+}
+
+/** Horizontal distance (tiles) at which the player LANDS for a lane move `delta`.
+ *  delta>=0 → a jump that returns to height `delta` floors up (flat = same height);
+ *  delta<0 → no jump, just running off and falling k floors. This is fixed by physics,
+ *  so we size the gap to it (platform sits right where you'll touch down). */
+function landTiles(speed: number, delta: number): number {
+  const g = TUNE.gravity, v = TUNE.jumpV;
+  if (delta < 0) {
+    const tt = Math.sqrt((2 * -delta * C.LANE_GAP) / g);
+    return (speed * tt) / C.TILE;
+  }
+  const rise = delta * C.LANE_GAP; // height the platform sits ABOVE the takeoff
+  const disc = v * v - 2 * g * rise;
+  const tt = disc <= 0 ? (2 * v) / g : (v + Math.sqrt(disc)) / g; // descending root
+  return (speed * tt) / C.TILE;
+}
+
+function hazardWeightsFor(speed: number): Record<string, number> {
+  const wts: Record<string, number> = { spike: C.HAZARD_WEIGHTS.spike }; // tier 1: spikes only
+  if (speed >= TUNE.geyserUnlock) { wts.lava = C.HAZARD_WEIGHTS.lava; wts.geyser = C.HAZARD_WEIGHTS.geyser; }
+  return wts;
+}
+
+/** Pickup weights at the given speed — knife joins once geysers unlock; the new kick/stomp
+ *  boosts only join later (once ghosts unlock). Magnet is a permanent default, not a drop. */
+function pickupWeightsFor(speed: number): Record<string, number> {
+  const wts: Record<string, number> = { ...C.PICKUP_WEIGHTS_BASE };
+  if (speed >= TUNE.geyserUnlock) wts.knife = C.PICKUP_KNIFE_WEIGHT;
+  if (speed >= TUNE.ghostUnlock) Object.assign(wts, C.PICKUP_LATE_WEIGHTS);
+  return wts;
+}
+
+function addPickup(w: World, col: number, lane: number, r: () => number, speed: number, kind?: PickupKind): void {
+  w.pickups.push({
+    x: col * C.TILE + C.TILE / 2,
     lane,
-    floatTiles: C.LANE_H[lane] + C.PICKUP_VIS_FLOAT, // hovers just above the floor → grabbed at run height
-    kind: pickWeighted(r(), C.PICKUP_WEIGHTS) as PickupKind,
+    kind: kind ?? (pickWeighted(r(), pickupWeightsFor(speed)) as PickupKind),
     taken: false
-  };
-  w.pickups.push(p);
+  });
 }
 
-/** Build one tile on lane `l` at column `c` (already known present + past lead-in). */
-function buildTile(
-  w: World, l: number, c: number, r: () => number, hazChance: number, ghostChance: number
-): void {
-  const P = w.open[l]!;
-  const tileIdx = P.tiles.length;
-  let kind: TileKind = 'solid';
-
-  if (w.hazSpacer[l] > 0) w.hazSpacer[l]--;
-  if (w.pickSpacer[l] > 0) w.pickSpacer[l]--;
-  if (w.ghostSpacer[l] > 0) w.ghostSpacer[l]--;
-
-  let placedPickup = false;
-
-  // a "guarded" pickup landing a couple tiles after an obstacle
-  if (w.pickPending[l] > 0) {
-    w.pickPending[l]--;
-    if (w.pickPending[l] === 0) {
-      addPickup(w, c, l, r);
-      placedPickup = true;
-      w.pickSpacer[l] = C.PICKUP_SPACER;
-    }
-  }
-
-  // hazard (never on the platform's first tile — keeps the takeoff/landing edge clean)
-  if (!placedPickup && tileIdx >= 1 && w.hazSpacer[l] <= 0 && r() < hazChance) {
-    const haz = pickWeighted(r(), C.HAZARD_WEIGHTS);
-    w.hazSpacer[l] = C.HAZARD_SPACER;
-    if (haz === 'geyser') {
-      w.geysers.push({ x: c * C.TILE + C.TILE / 2, lane: l, phase: r() * C.GEYSER_PERIOD, dead: false });
-    } else {
-      kind = haz as TileKind;
-    }
-    if (w.pickPending[l] === 0 && r() < C.OBSTACLE_REWARD_CHANCE) {
-      w.pickPending[l] = C.PICKUP_AFTER_OBSTACLE;
-    }
-  } else if (!placedPickup && kind === 'solid' && w.pickSpacer[l] <= 0) {
-    // standalone adaptive pickup — rare on the floor the player is on
-    const good = C.PICKUP_BASE * (l === w.playerLane ? C.PLAYER_LANE_GOOD_MULT : 1);
-    if (r() < good) {
-      addPickup(w, c, l, r);
-      w.pickSpacer[l] = C.PICKUP_SPACER;
-    }
-  }
-
-  // ghost over a solid tile (also biased off the player's current floor)
-  if (kind === 'solid' && tileIdx >= 1 && w.ghostSpacer[l] <= 0 && r() < ghostChance) {
-    const gmult = l === w.playerLane ? 0.4 : 1;
-    if (r() < gmult) {
-      const x = c * C.TILE + C.TILE / 2;
-      w.ghosts.push({
-        x,
-        lane: l,
-        floatTiles: C.LANE_H[l] + C.GHOST_FLOAT,
-        anchorX: x,
-        dir: r() < 0.5 ? 1 : -1,
-        fire: lerp(C.GHOST_FIRE_START, C.GHOST_FIRE_END, Math.min(1, w.nextCol / 9999)) * (0.5 + 0.5 * r()),
-        dead: false
-      });
-      w.ghostSpacer[l] = C.GHOST_SPACER;
-    }
-  }
-
-  P.tiles.push(kind);
-  P.col1 = c;
+function addEnemy(w: World, kind: 'ghost' | 'hobgoblin', col: number, lane: number, r: () => number): void {
+  const x = col * C.TILE + C.TILE / 2;
+  const off = kind === 'ghost' ? C.GHOST_FLOAT * C.TILE : C.TILE; // centre offset above the lane
+  w.enemies.push({ kind, x, y: -lane * C.LANE_GAP - off, lane, anchorX: x, dir: r() < 0.5 ? 1 : -1, fire: 0.4 + r() * 1.2, vx: 0, vy: 0, kicked: false, dead: false });
 }
 
-function genColumn(w: World, time: number): void {
+/** Choose the next lane delta — the game only goes UP or sideways now (never down). */
+function chooseDelta(r: () => number): number {
+  return r() < 0.5 ? 1 : 0; // climb a floor, or jump a gap on the same floor
+}
+
+/** Generate one path segment: a platform on the path lane + its trailing gap + maybe a branch. */
+function genSegment(w: World, time: number, speed: number): void {
   const r = rng(w);
-  const c = w.nextCol;
-  const leadIn = c < C.START_RUN;
+  const c0 = w.nextCol;
+  const leadIn = c0 < C.START_RUN;
   const t = Math.min(1, time / C.WIN_TIME);
-  const hazChance = lerp(C.HAZARD_CHANCE_START, C.HAZARD_CHANCE_END, t);
-  const ghostChance = lerp(C.GHOST_CHANCE_START, C.GHOST_CHANCE_END, t);
 
-  // toggle runs that have expired
+  // maybe start a pattern. Gaps are landing-aligned + platforms auto-lengthen to catch the
+  // landing, so 1-tile steps are fair now. patternChance (tunable) gates it; 0 = off.
+  if (!leadIn && w.patternLeft <= 0) {
+    w.pattern = 'none';
+    if (r() < TUNE.patternChance) { w.pattern = 'stair'; w.patternLeft = 3 + Math.floor(r() * 4); }
+  }
+
+  const lane = w.pathLane;
+  const hazChance = lerp(C.HAZARD_CHANCE_START, TUNE.hazardEnd, t);
+  const hazWeights = hazardWeightsFor(speed);
+  const clusterMax = clamp(Math.round(jumpReach(speed) * TUNE.spikeClusterF), 1, C.SPIKE_CLUSTER_MAX);
+
+  // pick the next move FIRST (the gap is sized to where this move lands)
+  let delta = 0;
   if (!leadIn) {
-    for (let l = 0; l < NLANES; l++) {
-      if (w.runLeft[l] > 0) continue;
-      if (w.present[l]) {
-        const othersHole = w.present.some((pr, k) => k !== l && !pr);
-        if (!othersHole && r() < C.GAP_PROB) {
-          w.present[l] = false;
-          w.runLeft[l] = C.GAP_LEN_MIN + Math.floor(r() * (C.GAP_LEN_MAX - C.GAP_LEN_MIN + 1));
-          w.open[l] = null;
-        } else {
-          w.runLeft[l] = C.PLAT_LEN_MIN + Math.floor(r() * (C.PLAT_LEN_MAX - C.PLAT_LEN_MIN + 1));
-        }
-      } else {
-        w.present[l] = true;
-        w.runLeft[l] = C.PLAT_LEN_MIN + Math.floor(r() * (C.PLAT_LEN_MAX - C.PLAT_LEN_MIN + 1));
-      }
+    delta = w.pattern === 'stair' ? 1 : chooseDelta(r); // up or sideways only
+  }
+
+  // platform length — at least long enough to CATCH the previous segment's landing (so
+  // tightened gaps from gapScale stay fair), and at least the random/pattern base.
+  const catchLen = Math.ceil(w.incomingLand) + 1;
+  const baseLen = leadIn
+    ? C.START_RUN
+    : TUNE.platMin + Math.floor(r() * (Math.max(TUNE.platMin, TUNE.platMax) - TUNE.platMin + 1));
+  const L = Math.max(baseLen, catchLen);
+
+  // build solid tiles
+  const tiles: TileKind[] = Array(L).fill('solid');
+
+  // Hazards sit at the platform's TRAILING edge (the takeoff side) — never on a DROP segment
+  // (you'd run into them) — so the same jump that clears the gap clears the spikes. The gap is
+  // then shrunk by the cluster width below, keeping the landing fair. Adjacent-spike width
+  // scales with jump reach (→ speed): wide is fine when fast, tight when slow.
+  let cw = 0;
+  if (w.hazSpacer > 0) w.hazSpacer--;
+  if (!leadIn && delta >= 0 && L >= 3 && w.hazSpacer <= 0 && r() < hazChance) {
+    const haz = pickWeighted(r(), hazWeights);
+    if (haz === 'geyser') {
+      // a geyser erupts at the takeoff edge — you jump the gap over its steam (safe while rising)
+      w.geysers.push({ x: (c0 + L - 1) * C.TILE + C.TILE / 2, lane, phase: r() * C.GEYSER_PERIOD, dead: false });
+      w.hazSpacer = C.HAZARD_SPACER;
+    } else {
+      cw = clamp(1 + Math.floor(r() * clusterMax), 1, L - 2); // leave ≥2 solid tiles to run up
+      for (let k = 0; k < cw; k++) tiles[L - 1 - k] = haz as TileKind;
+      w.hazSpacer = C.HAZARD_SPACER + cw;
+    }
+  }
+  w.platforms.push({ lane, col0: c0, col1: c0 + L - 1, tiles });
+
+  // an enemy on the path platform (speed-gated, spaced, kept off the player's current floor).
+  // ghosts at ghost-unlock; the big 2×2 hobgoblin once it unlocks (it needs a wide platform).
+  if (w.ghostSpacer > 0) w.ghostSpacer--;
+  if (!leadIn && w.ghostSpacer <= 0 && lane !== w.playerLane && L >= 3) {
+    const ghostChance = lerp(C.GHOST_CHANCE_START, TUNE.ghostEnd, t);
+    if (speed >= C.HOBGOBLIN_UNLOCK_SPEED && L >= 4 && r() < C.HOBGOBLIN_CHANCE) {
+      addEnemy(w, 'hobgoblin', c0 + Math.floor(L / 2), lane, r); w.ghostSpacer = C.GHOST_SPACER + 2;
+    } else if (speed >= TUNE.ghostUnlock && r() < ghostChance) {
+      addEnemy(w, 'ghost', c0 + Math.floor(L / 2), lane, r); w.ghostSpacer = C.GHOST_SPACER;
     }
   }
 
-  for (let l = 0; l < NLANES; l++) {
-    if (w.present[l]) {
-      if (!w.open[l]) {
-        const p: Platform = { lane: l, col0: c, col1: c, tiles: [] };
-        w.platforms.push(p);
-        w.open[l] = p;
-      }
-      if (leadIn) {
-        w.open[l]!.tiles.push('solid');
-        w.open[l]!.col1 = c;
-      } else {
-        buildTile(w, l, c, r, hazChance, ghostChance);
-      }
-    } else {
-      w.open[l] = null;
-    }
-    w.runLeft[l]--;
+  // a sparse path pickup just before a spike cluster (reward for committing to the hop)
+  if (cw > 0 && r() < C.OBSTACLE_REWARD_CHANCE) {
+    const good = lane === w.playerLane ? C.PLAYER_LANE_GOOD_MULT : 1;
+    if (r() < good) addPickup(w, c0 + Math.max(0, L - 1 - cw), lane, r, speed);
   }
-  w.nextCol++;
+
+  // gap: landing-aligned (× gapScale, which tightens platforms when <1), minus the spike
+  // cluster (you take off before the spikes). Record how far INTO the next platform the
+  // player will land, so the next platform can be made long enough to catch it.
+  let gap = C.GAP_LEN_MIN + Math.floor(r() * 2);
+  if (!leadIn) {
+    const land = landTiles(speed, delta);
+    gap = clamp(Math.round((land - 1 - cw) * TUNE.gapScale + (r() * 0.8 - 0.2)), C.GAP_LEN_MIN, C.GAP_LEN_MAX);
+    w.incomingLand = Math.max(0, land - (gap + cw + 1));
+  } else {
+    w.incomingLand = 0;
+  }
+
+  // MULTI-FLOOR: parallel platforms on floors ABOVE this stretch (game only goes up/sideways,
+  // so no platforms spawn below). The "how often platforms span multiple levels" knob.
+  if (!leadIn && w.pattern === 'none') {
+    for (const up of [1, 2] as const) {
+      if (r() >= TUNE.multiFloor) continue;
+      const bLane = lane + up;
+      const bLen = 3 + Math.floor(r() * 4);
+      const bCol = c0 + 1 + Math.floor(r() * Math.max(1, L - 2));
+      const btiles: TileKind[] = Array(bLen).fill('solid');
+      w.platforms.push({ lane: bLane, col0: bCol, col1: bCol + bLen - 1, tiles: btiles });
+      if (r() < 0.7) addPickup(w, bCol + Math.floor(bLen / 2), bLane, r, speed);
+      if (speed >= TUNE.ghostUnlock && r() < 0.35) addEnemy(w, 'ghost', bCol, bLane, r);
+    }
+  }
+
+  w.nextCol = c0 + L + gap;
+  w.pathLane = lane + delta;
+  if (!leadIn) w.patternLeft--;
 }
 
-export function ensureTo(w: World, maxX: number, time: number): void {
-  const need = Math.ceil(maxX / C.TILE) + 2;
-  while (w.nextCol < need) genColumn(w, time);
+export function ensureTo(w: World, maxX: number, time: number, speed: number): void {
+  const need = maxX + C.TILE * 2;
+  while (w.nextCol * C.TILE < need) genSegment(w, time, speed);
 }
 
 export function prune(w: World, minX: number): void {
@@ -198,7 +234,8 @@ export function prune(w: World, minX: number): void {
   w.minCol = minCol;
   w.platforms = w.platforms.filter((p) => p.col1 >= minCol);
   w.geysers = w.geysers.filter((g) => g.x > minX - C.TILE * 2 && !g.dead);
-  w.ghosts = w.ghosts.filter((g) => g.x > minX - C.TILE * 2 && !g.dead);
+  // keep kicked enemies a bit longer (they fly leftward); cull dead/off-screen
+  w.enemies = w.enemies.filter((g) => !g.dead && g.x > minX - C.TILE * 4);
   w.pickups = w.pickups.filter((p) => p.x > minX - C.TILE * 2 && !p.taken);
 }
 

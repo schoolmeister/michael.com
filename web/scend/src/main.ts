@@ -6,7 +6,11 @@
 import { MAX_DT } from './config';
 import { attachInput } from './input';
 import { render } from './render';
-import { createGame, requestJump, update } from './sim';
+import {
+  confirmChar, configAdjust, configMove, createGame, requestJump,
+  returnToSelect, selectNext, selectPrev, toggleConfig, update,
+  toggleInspector, inspSetMouse, inspPick, toggleGod, godSpeed
+} from './sim';
 import type { GameState } from './state';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -34,15 +38,39 @@ window.addEventListener('resize', resize);
 resize();
 
 function restart(): void {
+  const prevChar = state.charId;
   state = createGame(newSeed(), state.viewW, state.viewH);
+  state.charId = prevChar;
+  state.selectIndex = prevChar;
+  state.phase = 'running';
 }
 
 attachInput(canvas, {
   onPrimary: () => {
-    if (state.phase === 'running') requestJump(state);
+    if (state.inspectorOpen) return; // inspector swallows the click (it picks a tile)
+    if (state.phase === 'select') {
+      if (state.configOpen) toggleConfig(state); // Space closes the config menu
+      else confirmChar(state);
+    } else if (state.phase === 'running') requestJump(state);
     else restart();
   },
-  onRestart: restart
+  onRestart: restart,
+  onLeft:  () => { if (state.phase === 'select' && !state.inspectorOpen) { state.configOpen ? configAdjust(state, -1) : selectPrev(state); } },
+  onRight: () => { if (state.phase === 'select' && !state.inspectorOpen) { state.configOpen ? configAdjust(state, 1) : selectNext(state); } },
+  onUp:    () => { if (state.phase === 'select' && state.configOpen) configMove(state, -1); },
+  onDown:  () => { if (state.phase === 'select' && state.configOpen) configMove(state, 1); },
+  onConfig: () => { if (state.phase === 'select' && !state.inspectorOpen) toggleConfig(state); },
+  onInspect: () => { if (state.phase === 'select') toggleInspector(state); },
+  onGod: () => { if (state.phase === 'running') toggleGod(state); },
+  onSpeedDown: () => { if (state.godMode) godSpeed(state, -1); },
+  onSpeedUp: () => { if (state.godMode) godSpeed(state, 1); },
+  onPointerMove: (x, y) => { if (state.inspectorOpen) inspSetMouse(state, x, y); },
+  onPointerDown: (x, y) => { if (state.inspectorOpen) inspPick(state, x, y); },
+  onEscape: () => {
+    if (state.inspectorOpen) toggleInspector(state);
+    else if (state.phase === 'select' && state.configOpen) toggleConfig(state);
+    else if (state.phase === 'running') returnToSelect(state);
+  },
 });
 
 // When embedded in the SvelteKit window's iframe, take focus so Space reaches the game
