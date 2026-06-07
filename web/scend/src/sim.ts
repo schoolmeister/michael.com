@@ -51,7 +51,7 @@ export function createGame(seed: number, viewW: number, viewH: number): GameStat
     player: {
       x: startX, y: groundWorldY - C.PLAYER_H, vy: 0, onGround: true, lane: 0,
       coyote: 0, buffer: 0, invulnUntil: -1, lastGroundY: groundWorldY,
-      knife: false, knifeTimer: 0, magnet: true, boot: false, stomp: false // magnet is now a default
+      knife: false, knifeTimer: 0, magnet: true, diving: false, slideUntil: 0, boot: false, stomp: false
     },
     world,
     projectiles: [], particles: [], floats: [], trail: [], trailTimer: 0,
@@ -140,9 +140,13 @@ function die(s: GameState, color: string): boolean {
   burst(s, s.player.x, s.player.y + C.PLAYER_H / 2, 20, C.PALETTE.player, { speed: 220, size: 3, life: 0.7 });
   return true;
 }
-function smashFx(s: GameState, color: string): void {
-  s.shake = Math.max(s.shake, C.SHAKE_BOOST * 0.7);
-  burst(s, s.player.x, s.player.y + C.PLAYER_H / 2, 14, color, { speed: 220, size: 3, life: 0.5 });
+/** A kill/smash is FUEL: boost speed, but the gain tapers off as you get faster. */
+function gainKill(s: GameState, x: number, y: number, color: string): void {
+  const taper = Math.max(C.KILL_BOOST_MIN_FRAC, 1 - (s.speed - TUNE.baseSpeed) / C.KILL_TAPER_RANGE);
+  s.speedBoost += C.KILL_BOOST_MAX * taper;
+  s.boostFlash = Math.max(s.boostFlash, 0.2);
+  s.shake = Math.max(s.shake, C.SHAKE_BOOST * 0.6);
+  burst(s, x, y, 10, color, { speed: 220, size: 3, life: 0.4 });
 }
 
 export function update(s: GameState, dt: number): void {
@@ -240,6 +244,14 @@ export function update(s: GameState, dt: number): void {
       if (wasAir) {
         burst(s, p.x, p.y + C.PLAYER_H, 6, C.PALETTE.laneEdge[((bestLane % 3) + 3) % 3], { speed: 120, size: 2, life: 0.3, gravity: true });
         if (p.stomp) applyStomp(s); // STOMP: launch nearby obstacles up on this landing
+        if (p.diving) {
+          // DIVE-SLIDE: a brief invincible ground-dash that smashes everything in its path
+          p.diving = false;
+          p.slideUntil = s.time + C.SLIDE_TIME;
+          p.invulnUntil = Math.max(p.invulnUntil, p.slideUntil);
+          s.shake = Math.max(s.shake, C.SHAKE_BOOST);
+          burst(s, p.x, p.y + C.PLAYER_H, 16, C.PALETTE.boost, { speed: 300, size: 3, life: 0.4, vx0: 160 });
+        }
       }
     }
   }
@@ -258,8 +270,9 @@ export function update(s: GameState, dt: number): void {
       p.buffer = 0;
       burst(s, p.x, p.y + C.PLAYER_H, 8, C.PALETTE.player, { speed: 150, size: 2, life: 0.3, gravity: true });
     } else if (p.magnet && p.vy > -C.MAGNET_DIVE_V * 0.5) {
-      // magnet boots: slam straight down mid-air
+      // magnet boots: slam straight down mid-air (a dive → triggers a slide on landing)
       p.vy = C.MAGNET_DIVE_V;
+      p.diving = true;
       p.buffer = 0;
       burst(s, p.x, p.y + C.PLAYER_H, 6, C.PALETTE.magnet, { speed: 140, size: 2, life: 0.25 });
     }
@@ -272,8 +285,9 @@ export function update(s: GameState, dt: number): void {
     if (pa) {
       const k = pa.p.tiles[pa.idx];
       if (k === 'spike' || k === 'lava') {
-        if (isInvuln(s)) { pa.p.tiles[pa.idx] = 'solid'; smashFx(s, k === 'lava' ? C.PALETTE.lava : C.PALETTE.spike); }
-        else die(s, k === 'lava' ? C.PALETTE.lava : C.PALETTE.spike);
+        const col = k === 'lava' ? C.PALETTE.lava : C.PALETTE.spike;
+        if (isInvuln(s)) { pa.p.tiles[pa.idx] = 'solid'; gainKill(s, p.x, p.y + C.PLAYER_H / 2, col); }
+        else die(s, col);
       }
     }
   }
@@ -309,7 +323,7 @@ function updateGeysers(s: GameState, dt: number): void {
     const base = laneWorldY(g.lane);
     const top = base - C.GEYSER_HEIGHT * C.TILE;
     if (playerRight(p) > g.x - C.TILE / 2 && playerLeft(p) < g.x + C.TILE / 2 && playerFeet(p) > top && p.y < base) {
-      if (isInvuln(s)) { g.dead = true; smashFx(s, C.PALETTE.geyser); }
+      if (isInvuln(s)) { g.dead = true; gainKill(s, g.x, top, C.PALETTE.geyser); }
       else die(s, C.PALETTE.geyser);
     }
   }
@@ -407,7 +421,7 @@ function updateEnemies(s: GameState, dt: number): void {
     // player contact
     if (playerHitsEnemy(p, e)) {
       if (p.boot) { p.boot = false; kickEnemy(s, e, 1); floatText(s, 'KICK!', C.PALETTE.boot); }
-      else if (isInvuln(s)) { e.dead = true; smashFx(s, C.PALETTE[e.kind]); }
+      else if (isInvuln(s)) { e.dead = true; gainKill(s, e.x, e.y, C.PALETTE[e.kind]); }
       else if (e.kind === 'ghost' && p.vy > -C.GHOST_BOUNCE_V * 0.5) {
         p.y = e.y - C.TILE * 0.34 - C.PLAYER_H; // bounce up off the ghost (lower than a jump)
         p.vy = -C.GHOST_BOUNCE_V;
@@ -456,7 +470,7 @@ function updateProjectiles(s: GameState, dt: number): void {
       for (const e of s.world.enemies) {
         if (!e.dead && !e.kicked && Math.abs(e.x - pr.x) < C.TILE * 0.7 && Math.abs(e.y - pr.y) < C.TILE) {
           e.dead = true; pr.dead = true;
-          burst(s, e.x, e.y, 12, C.PALETTE.knife, { speed: 200, size: 3, life: 0.4 });
+          gainKill(s, e.x, e.y, C.PALETTE.knife);
         }
       }
       const lane = Math.round(-pr.y / C.LANE_GAP);

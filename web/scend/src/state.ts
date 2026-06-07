@@ -76,6 +76,8 @@ export interface Player {
   knife: boolean; // held knife weapon (auto-throws every KNIFE_PERIOD)
   knifeTimer: number; // seconds until the next auto-throw
   magnet: boolean; // magnet boots: mid-air Space dives straight down
+  diving: boolean; // currently mid-dive (set by a mid-air Space) → triggers a slide on landing
+  slideUntil: number; // game-time the dive-slide (invincible smashing dash) ends
   boot: boolean; // kick charge: next enemy hit is kicked away (bowling chain)
   stomp: boolean; // stomp charge: next landing launches nearby obstacles up
 }

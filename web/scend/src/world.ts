@@ -113,42 +113,46 @@ function addEnemy(w: World, kind: 'ghost' | 'hobgoblin', col: number, lane: numb
   w.enemies.push({ kind, x, y: -lane * C.LANE_GAP - off, lane, anchorX: x, dir: r() < 0.5 ? 1 : -1, fire: 0.4 + r() * 1.2, vx: 0, vy: 0, kicked: false, dead: false });
 }
 
-/** Choose the next lane delta — the game only goes UP or sideways now (never down). */
-function chooseDelta(r: () => number): number {
-  return r() < 0.5 ? 1 : 0; // climb a floor, or jump a gap on the same floor
+/** Difficulty 0..1, driven by SPEED — the world starts timid and escalates as you accelerate. */
+function difficulty(speed: number): number {
+  return clamp((speed - TUNE.baseSpeed) / C.DIFFICULTY_RANGE, 0, 1);
+}
+
+/** Climb (+1) vs flat (0); more climbs as difficulty rises. Up/sideways only (never down). */
+function chooseDelta(r: () => number, d: number): number {
+  return r() < lerp(C.CLIMB_CHANCE_START, C.CLIMB_CHANCE_END, d) ? 1 : 0;
 }
 
 /** Generate one path segment: a platform on the path lane + its trailing gap + maybe a branch. */
-function genSegment(w: World, time: number, speed: number): void {
+function genSegment(w: World, speed: number): void {
   const r = rng(w);
   const c0 = w.nextCol;
   const leadIn = c0 < C.START_RUN;
-  const t = Math.min(1, time / C.WIN_TIME);
+  const d = difficulty(speed); // 0 = timid → 1 = full chaos (drives everything below)
 
-  // maybe start a pattern. Gaps are landing-aligned + platforms auto-lengthen to catch the
-  // landing, so 1-tile steps are fair now. patternChance (tunable) gates it; 0 = off.
   if (!leadIn && w.patternLeft <= 0) {
     w.pattern = 'none';
     if (r() < TUNE.patternChance) { w.pattern = 'stair'; w.patternLeft = 3 + Math.floor(r() * 4); }
   }
 
   const lane = w.pathLane;
-  const hazChance = lerp(C.HAZARD_CHANCE_START, TUNE.hazardEnd, t);
+  const hazChance = lerp(C.HAZARD_CHANCE_START, TUNE.hazardEnd, d);
   const hazWeights = hazardWeightsFor(speed);
   const clusterMax = clamp(Math.round(jumpReach(speed) * TUNE.spikeClusterF), 1, C.SPIKE_CLUSTER_MAX);
 
   // pick the next move FIRST (the gap is sized to where this move lands)
   let delta = 0;
   if (!leadIn) {
-    delta = w.pattern === 'stair' ? 1 : chooseDelta(r); // up or sideways only
+    delta = w.pattern === 'stair' ? 1 : chooseDelta(r, d); // up or sideways only
   }
 
-  // platform length — at least long enough to CATCH the previous segment's landing (so
-  // tightened gaps from gapScale stay fair), and at least the random/pattern base.
+  // platform length — long & predictable when timid (×TIMID_LEN_MULT at d=0), tightening as
+  // difficulty rises; always long enough to CATCH the previous segment's landing.
   const catchLen = Math.ceil(w.incomingLand) + 1;
+  const lenMult = lerp(C.TIMID_LEN_MULT, 1, d);
   const baseLen = leadIn
     ? C.START_RUN
-    : TUNE.platMin + Math.floor(r() * (Math.max(TUNE.platMin, TUNE.platMax) - TUNE.platMin + 1));
+    : Math.round((TUNE.platMin + Math.floor(r() * (Math.max(TUNE.platMin, TUNE.platMax) - TUNE.platMin + 1))) * lenMult);
   const L = Math.max(baseLen, catchLen);
 
   // build solid tiles
@@ -178,7 +182,7 @@ function genSegment(w: World, time: number, speed: number): void {
   // ghosts at ghost-unlock; the big 2×2 hobgoblin once it unlocks (it needs a wide platform).
   if (w.ghostSpacer > 0) w.ghostSpacer--;
   if (!leadIn && w.ghostSpacer <= 0 && lane !== w.playerLane && L >= 3) {
-    const ghostChance = lerp(C.GHOST_CHANCE_START, TUNE.ghostEnd, t);
+    const ghostChance = lerp(C.GHOST_CHANCE_START, TUNE.ghostEnd, d);
     if (speed >= C.HOBGOBLIN_UNLOCK_SPEED && L >= 4 && r() < C.HOBGOBLIN_CHANCE) {
       addEnemy(w, 'hobgoblin', c0 + Math.floor(L / 2), lane, r); w.ghostSpacer = C.GHOST_SPACER + 2;
     } else if (speed >= TUNE.ghostUnlock && r() < ghostChance) {
@@ -208,7 +212,8 @@ function genSegment(w: World, time: number, speed: number): void {
   // so no platforms spawn below). The "how often platforms span multiple levels" knob.
   if (!leadIn && w.pattern === 'none') {
     for (const up of [1, 2] as const) {
-      if (r() >= TUNE.multiFloor) continue;
+      // some layering from the start (MULTI_FLOOR_START_FRAC), growing to full with speed
+      if (r() >= TUNE.multiFloor * lerp(C.MULTI_FLOOR_START_FRAC, 1, d)) continue;
       const bLane = lane + up;
       const bLen = 3 + Math.floor(r() * 4);
       const bCol = c0 + 1 + Math.floor(r() * Math.max(1, L - 2));
@@ -224,9 +229,9 @@ function genSegment(w: World, time: number, speed: number): void {
   if (!leadIn) w.patternLeft--;
 }
 
-export function ensureTo(w: World, maxX: number, time: number, speed: number): void {
+export function ensureTo(w: World, maxX: number, _time: number, speed: number): void {
   const need = maxX + C.TILE * 2;
-  while (w.nextCol * C.TILE < need) genSegment(w, time, speed);
+  while (w.nextCol * C.TILE < need) genSegment(w, speed);
 }
 
 export function prune(w: World, minX: number): void {

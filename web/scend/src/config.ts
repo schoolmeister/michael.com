@@ -46,6 +46,16 @@ export const GAP_LEN_MIN = 1; // floor on gap width (shallow drops need a narrow
 export const GAP_LEN_MAX = 13; // clamp so the next platform stays on-screen at high speed
 export const MAX_DROP_LANES = 3; // path never drops more than this at once (fall-death bound)
 export const SPIKE_CLUSTER_MAX = 6; // hard cap on adjacent-spike run length
+
+/** DIFFICULTY rises with SPEED (not time). difficulty = clamp((speed-base)/RANGE, 0, 1).
+ *  At 0 the world is timid (long platforms, mostly flat, few hazards, no parallel floors);
+ *  at 1 it's the full chaos. Everything below interpolates START→END by this factor. */
+export const DIFFICULTY_RANGE = 1100; // px/s above base speed to reach full difficulty
+// difficulty 0 is a NORMAL challenging game (already engaging) — escalation piles on intensity.
+export const TIMID_LEN_MULT = 1.25; // ×platform length at difficulty 0 (only slightly longer)
+export const CLIMB_CHANCE_START = 0.4; // real vertical decisions from the very start
+export const CLIMB_CHANCE_END = 0.6;
+export const MULTI_FLOOR_START_FRAC = 0.5; // fraction of full multi-floor density at difficulty 0
 /** Falling more than this far below the floor you last stood on (with nothing to land on) is
  *  fatal. Bigger than a legit MAX_DROP_LANES drop so only true voids kill. */
 export const FALL_DEATH_DROP = (MAX_DROP_LANES + 1.3) * LANE_GAP;
@@ -60,8 +70,8 @@ export const ZOOM_FULL_SPEED = 1150; // fully zoomed out at/above this speed
 export const ZOOM_PIVOT_FRAC = 0.7; // zoom pivots near the player (bottom) — reveals more above
 
 // ── Hazards (tile-based, on platform interiors) ───────────────────────────────
-export const HAZARD_CHANCE_START = 0.22; // spikes from the very start (not just late game)
-export const HAZARD_CHANCE_END = 0.4;
+export const HAZARD_CHANCE_START = 0.2; // hazards from the start; escalates with speed
+export const HAZARD_CHANCE_END = 0.45;
 export const HAZARD_WEIGHTS = { spike: 3, lava: 2, geyser: 1.5 } as const;
 export const HAZARD_SPACER = 3; // min solid tiles between hazards on a lane
 
@@ -124,8 +134,17 @@ export const KICK_CHAIN_R = 0.7; // tiles: a flying kicked enemy knocks others w
 export const STOMP_RADIUS = 2; // tiles: on landing, obstacles within this get launched
 export const STOMP_LAUNCH_V = -640; // upward velocity given to stomped enemies
 
-// ── Magnet boots (mid-air Space = instant dive straight down) ─────────────────
+// ── Magnet dive (mid-air Space) + the DIVE-SLIDE on landing ───────────────────
 export const MAGNET_DIVE_V = 1500;
+/** Landing FROM A DIVE triggers a slide: a brief invincible ground-dash that smashes every
+ *  enemy/obstacle in its path (each kill = a speed boost). */
+export const SLIDE_TIME = 0.45; // seconds the dive-slide lasts
+
+// ── Kill = FUEL: destroying an enemy/obstacle boosts speed, but the boost TAPERS as you
+//    get faster (early kills launch you; late kills barely nudge — you're already flying). ──
+export const KILL_BOOST_MAX = 55; // boost from a kill at base speed
+export const KILL_TAPER_RANGE = 1300; // px/s above base over which the boost fades to its min
+export const KILL_BOOST_MIN_FRAC = 0.12; // floor (kills always give a little)
 
 // ── Speed: PERMANENT stacking boost × a steeper time ramp (FASTER overall) ─────
 export const BASE_SPEED = 360; // ↑ was 280 — quicker out of the gate
